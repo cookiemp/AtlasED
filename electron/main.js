@@ -40,6 +40,16 @@ function getEncryptionKey() {
     }
 }
 
+// Store schema — single source of truth (no duplication)
+const STORE_SCHEMA = {
+    gemini_api_key: { type: 'string', default: '' },
+    theme: { type: 'string', default: 'dark' },
+    auto_quiz: { type: 'boolean', default: true },
+    playback_speed: { type: 'number', default: 1.0 },
+    srs_enabled: { type: 'boolean', default: true },
+    srs_intervals: { type: 'array', default: [1, 3, 7, 14] }
+};
+
 /**
  * Initialize electron-store with proper error handling
  * If decryption fails (due to key change), clears store and starts fresh
@@ -49,18 +59,7 @@ function initStore() {
 
     try {
         // Try to create store with current key
-        return new Store({
-            encryptionKey,
-            schema: {
-                gemini_api_key: { type: 'string', default: '' },
-                youtube_api_key: { type: 'string', default: '' },
-                theme: { type: 'string', default: 'dark' },
-                auto_quiz: { type: 'boolean', default: true },
-                playback_speed: { type: 'number', default: 1.0 },
-                srs_enabled: { type: 'boolean', default: true },
-                srs_intervals: { type: 'array', default: [1, 3, 7, 14] }
-            }
-        });
+        return new Store({ encryptionKey, schema: STORE_SCHEMA });
     } catch (error) {
         // If decryption fails, clear store and recreate
         if (error.message?.includes('not valid JSON') || error.message?.includes('Unexpected token')) {
@@ -78,18 +77,7 @@ function initStore() {
             }
 
             // Create fresh store
-            return new Store({
-                encryptionKey,
-                schema: {
-                    gemini_api_key: { type: 'string', default: '' },
-                    youtube_api_key: { type: 'string', default: '' },
-                    theme: { type: 'string', default: 'dark' },
-                    auto_quiz: { type: 'boolean', default: true },
-                    playback_speed: { type: 'number', default: 1.0 },
-                    srs_enabled: { type: 'boolean', default: true },
-                    srs_intervals: { type: 'array', default: [1, 3, 7, 14] }
-                }
-            });
+            return new Store({ encryptionKey, schema: STORE_SCHEMA });
         }
 
         // Re-throw other errors
@@ -185,11 +173,13 @@ app.whenReady().then(() => {
                             }
                         \`;
                         document.head.appendChild(style);
-                    })()`).catch(() => { });
+                    })()`).catch((err) => {
+                        console.warn('[YouTube] Failed to inject hide styles:', err.message);
+                    });
                 }
             }
         } catch (e) {
-            // Silently ignore errors — frame may have navigated away
+            console.warn('[YouTube] Frame access error (may have navigated away):', e.message);
         }
     });
 

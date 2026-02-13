@@ -7,6 +7,18 @@ const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/
 const REQUEST_TIMEOUT_MS = 60000; // 60 seconds
 
 /**
+ * Sanitize user-supplied text before inserting into AI prompts.
+ * Strips markdown/code-block chars that could alter prompt structure and limits length.
+ */
+function sanitizeForPrompt(text) {
+    if (!text) return '';
+    return text
+        .replace(/[\`\*\#\[\]\(\)\{\}\>\|\\]/g, '')
+        .substring(0, 200)
+        .trim();
+}
+
+/**
  * Fetch with timeout support
  * @param {string} url - URL to fetch
  * @param {object} options - Fetch options
@@ -16,7 +28,7 @@ const REQUEST_TIMEOUT_MS = 60000; // 60 seconds
 async function fetchWithTimeout(url, options = {}, timeoutMs = REQUEST_TIMEOUT_MS) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-    
+
     try {
         const response = await fetch(url, {
             ...options,
@@ -51,7 +63,7 @@ export async function generateFieldGuide(apiKey, transcript, videoTitle) {
 
     const prompt = `You are an expert educational content creator. Analyze the following video transcript and create a comprehensive Field Guide for learning.
 
-**Video Title:** ${videoTitle}
+**Video Title:** ${sanitizeForPrompt(videoTitle)}
 
 **Transcript:**
 ${transcript.substring(0, 30000)} ${transcript.length > 30000 ? '... [truncated]' : ''}
@@ -194,7 +206,7 @@ export async function generateQuizzes(apiKey, transcript, videoTitle) {
 
     const prompt = `You are an expert educational assessor. Based on the following video transcript, create comprehension quizzes that test understanding at natural break points.
 
-**Video Title:** ${videoTitle}
+**Video Title:** ${sanitizeForPrompt(videoTitle)}
 
 **Transcript:**
 ${transcript.substring(0, 30000)} ${transcript.length > 30000 ? '... [truncated]' : ''}
@@ -345,7 +357,7 @@ export async function chatWithAI(apiKey, message, transcript, videoTitle, previo
     // System context as first message if no history
     const contextPrompt = `You are Atlas AI, an intelligent learning assistant helping a student understand video content. 
 
-**Video Title:** ${videoTitle}
+**Video Title:** ${sanitizeForPrompt(videoTitle)}
 
 **Video Transcript (for context):**
 ${transcript ? transcript.substring(0, 15000) : 'No transcript available yet.'}

@@ -85,7 +85,7 @@ export function initDatabase() {
     -- Notes (personal user annotations per waypoint)
     CREATE TABLE IF NOT EXISTS notes (
       id TEXT PRIMARY KEY,
-      waypoint_id TEXT NOT NULL,
+      waypoint_id TEXT NOT NULL UNIQUE,
       content TEXT DEFAULT '',
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now')),

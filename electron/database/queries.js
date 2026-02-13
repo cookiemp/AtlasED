@@ -234,22 +234,32 @@ export function getMemoryCheckpoints() {
 
     const now = new Date();
 
+    // Prefetch ALL sessions in a single query (fixes N+1 pattern)
+    const waypointIds = waypointStats.map(s => s.waypoint_id);
+    const placeholders = waypointIds.map(() => '?').join(',');
+    const allSessions = db.prepare(`
+        SELECT waypoint_id, DATE(attempted_at) as session_date,
+               COUNT(*) as questions, SUM(is_correct) as correct
+        FROM quiz_attempts
+        WHERE waypoint_id IN (${placeholders})
+        GROUP BY waypoint_id, DATE(attempted_at)
+        ORDER BY session_date ASC
+    `).all(...waypointIds);
+
+    // Group sessions by waypoint_id in memory
+    const sessionsByWaypoint = {};
+    for (const s of allSessions) {
+        if (!sessionsByWaypoint[s.waypoint_id]) sessionsByWaypoint[s.waypoint_id] = [];
+        sessionsByWaypoint[s.waypoint_id].push(s);
+    }
+
     return waypointStats.map(stat => {
         const accuracy = stat.total_attempts > 0
             ? stat.correct_count / stat.total_attempts
             : 0;
 
-        // Determine SRS level based on number of review sessions and accuracy
-        // Each quiz session = one review. Count distinct sessions (by date).
-        const sessions = db.prepare(`
-            SELECT DATE(attempted_at) as session_date,
-                   COUNT(*) as questions,
-                   SUM(is_correct) as correct
-            FROM quiz_attempts
-            WHERE waypoint_id = ?
-            GROUP BY DATE(attempted_at)
-            ORDER BY session_date ASC
-        `).all(stat.waypoint_id);
+        // Look up sessions from prefetched data (no extra query)
+        const sessions = sessionsByWaypoint[stat.waypoint_id] || [];
 
         let intervalIndex = 0;
 
