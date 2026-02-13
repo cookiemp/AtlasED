@@ -1,0 +1,422 @@
+@import url('https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@400,500,700,800&f[]=satoshi@400,500,600,700&f[]=jetbrains-mono@400,500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* AtlasED Dark Theme Design System */
+    --background: 0 0% 6%;
+    --foreground: 0 0% 100%;
+
+    --card: 0 0% 10%;
+    --card-foreground: 0 0% 100%;
+
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 100%;
+
+    --primary: 41 56% 58%;
+    --primary-foreground: 0 0% 6%;
+
+    --secondary: 0 0% 14%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 0 0% 14%;
+    --muted-foreground: 0 0% 45%;
+
+    --accent: 0 0% 14%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 16%;
+    --input: 0 0% 16%;
+    --ring: 41 56% 58%;
+
+    --radius: 0.75rem;
+
+    /* Atlas-specific semantic colors */
+    --atlas-bg-primary: 0 0% 6%;
+    --atlas-bg-secondary: 0 0% 10%;
+    --atlas-bg-tertiary: 0 0% 14%;
+
+    --atlas-gold: 41 56% 58%;
+    --atlas-gold-hover: 41 60% 66%;
+    --atlas-gold-muted: 40 43% 44%;
+    --atlas-gold-light: 45 77% 76%;
+
+    --atlas-text-primary: 0 0% 100%;
+    --atlas-text-secondary: 0 0% 64%;
+    --atlas-text-muted: 0 0% 45%;
+
+    --atlas-border: 0 0% 16%;
+
+    --atlas-success: 142 71% 65%;
+    --atlas-warning: 45 93% 55%;
+    --atlas-error: 0 84% 60%;
+    --atlas-info: 217 91% 68%;
+
+    /* Category colors for Knowledge Graph */
+    --category-fundamentals: 217 91% 68%;
+    --category-advanced: 41 56% 58%;
+    --category-practical: 142 71% 65%;
+    --category-theory: 330 81% 71%;
+
+    --sidebar-background: 0 0% 10%;
+    --sidebar-foreground: 0 0% 64%;
+    --sidebar-primary: 41 56% 58%;
+    --sidebar-primary-foreground: 0 0% 6%;
+    --sidebar-accent: 0 0% 14%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 16%;
+    --sidebar-ring: 41 56% 58%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-display;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: 'Cabinet Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  .font-body {
+    font-family: 'Satoshi', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--atlas-bg-secondary));
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--atlas-border));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--atlas-gold));
+}
+
+/* Modal Scrollbar - Thinner and more subtle */
+.modal-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 4px 0;
+}
+
+.modal-scrollbar::-webkit-scrollbar-thumb {
+  background: hsl(var(--atlas-border));
+  border-radius: 3px;
+}
+
+.modal-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--atlas-gold-muted));
+}
+
+/* Custom Select/Dropdown Styling */
+select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a3a3a3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+
+select:focus {
+  outline: none;
+  border-color: hsl(var(--atlas-gold));
+}
+
+select option {
+  background-color: hsl(var(--atlas-bg-secondary));
+  color: hsl(var(--atlas-text-primary));
+  padding: 8px 12px;
+}
+
+select option:hover,
+select option:focus,
+select option:checked {
+  background-color: hsl(var(--atlas-gold));
+  color: hsl(var(--atlas-bg-primary));
+}
+
+/* Animations */
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes modalEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes progressFill {
+  from {
+    width: 0%;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, hsl(var(--atlas-bg-tertiary)) 25%, hsl(var(--atlas-border)) 50%, hsl(var(--atlas-bg-tertiary)) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-modal-enter {
+  animation: modalEnter 0.3s ease-out;
+}
+
+.animate-spin-slow {
+  animation: spin-slow 1.5s linear infinite;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+.animate-progress-fill {
+  animation: progressFill 0.8s ease-out forwards;
+}
+
+/* Glass Panel Effect */
+.glass-panel {
+  background: hsla(var(--atlas-bg-secondary) / 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid hsla(var(--atlas-gold) / 0.15);
+}
+
+/* Input Focus Glow */
+.input-glow:focus {
+  box-shadow: 0 0 0 2px hsla(var(--atlas-gold) / 0.2);
+}
+
+/* Progress Bar Gradient */
+.progress-bar-gradient {
+  background: linear-gradient(90deg, hsl(var(--atlas-gold)) 0%, hsl(var(--atlas-gold-hover)) 100%);
+}
+
+/* Gold Glow Effect */
+.glow-gold {
+  box-shadow: 0 0 40px hsla(var(--atlas-gold) / 0.15);
+}
+
+/* Map Pattern for Empty States */
+.map-pattern {
+  background-image: radial-gradient(circle at 2px 2px, hsla(var(--atlas-gold) / 0.15) 1px, transparent 0);
+  background-size: 40px 40px;
+}
+
+/* Difficulty Badge Glow Effects */
+.difficulty-easy {
+  box-shadow: 0 0 12px hsla(var(--atlas-success) / 0.15);
+}
+
+.difficulty-medium {
+  box-shadow: 0 0 12px hsla(var(--atlas-warning) / 0.15);
+}
+
+.difficulty-hard {
+  box-shadow: 0 0 12px hsla(var(--atlas-error) / 0.15);
+}
+
+/* Quiz Option Styles */
+.quiz-option {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.quiz-option:hover:not(.selected):not(.disabled) {
+  background: hsl(0 0% 12%);
+  border-color: hsl(0 0% 23%);
+}
+
+.quiz-option.selected {
+  background: hsla(var(--atlas-gold) / 0.1);
+  border-color: hsl(var(--atlas-gold));
+}
+
+.quiz-option.correct {
+  background: hsla(var(--atlas-success) / 0.1);
+  border-color: hsl(var(--atlas-success));
+}
+
+.quiz-option.incorrect {
+  background: hsla(var(--atlas-error) / 0.1);
+  border-color: hsl(var(--atlas-error));
+}
+
+/* Waypoint Row Hover */
+.waypoint-row {
+  transition: all 0.2s ease;
+}
+
+.waypoint-row:hover {
+  background-color: hsl(var(--atlas-bg-tertiary));
+  transform: translateX(4px);
+}
+
+/* Checkpoint Card Hover */
+.checkpoint-card {
+  transition: all 0.2s ease-out;
+}
+
+.checkpoint-card:hover {
+  transform: translateY(-2px);
+}
+
+/* Tab Content Transition */
+.tab-content {
+  transition: opacity 0.2s ease;
+}
+
+/* Code Block Styling */
+.code-block {
+  background: hsl(0 0% 4%);
+  border: 1px solid hsl(var(--atlas-border));
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Chat Bubbles */
+.chat-bubble-user {
+  background: hsla(var(--atlas-gold) / 0.12);
+  border: 1px solid hsla(var(--atlas-gold) / 0.25);
+}
+
+.chat-bubble-ai {
+  background: hsl(var(--atlas-bg-secondary));
+  border: 1px solid hsl(var(--atlas-border));
+}
+
+/* Knowledge Graph Styles */
+.node-circle {
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.node-circle:hover {
+  filter: drop-shadow(0 0 8px currentColor);
+}
+
+.graph-link {
+  stroke-opacity: 0.4;
+  transition: all 0.3s ease;
+}
+
+.graph-link.highlighted {
+  stroke-opacity: 1;
+  stroke-width: 2px;
+}
+
+.graph-link.dimmed {
+  stroke-opacity: 0.1;
+}
+
+.node-label {
+  font-family: 'Satoshi', sans-serif;
+  font-size: 12px;
+  fill: hsl(var(--atlas-text-secondary));
+  pointer-events: none;
+  text-shadow: 0 1px 3px hsla(0 0% 0% / 0.8);
+}
+
+.node-label.highlighted {
+  fill: hsl(var(--atlas-text-primary));
+  font-weight: 500;
+}
+
+.node-label.dimmed {
+  opacity: 0.3;
+}
+
+/* Graph Container Background */
+.graph-container {
+  background-image:
+    radial-gradient(circle at 20% 50%, hsla(var(--atlas-gold) / 0.03) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, hsla(var(--category-fundamentals) / 0.03) 0%, transparent 50%),
+    radial-gradient(circle at 40% 20%, hsla(var(--atlas-success) / 0.02) 0%, transparent 40%);
+}
+
+/* Pause Overlay */
+.pause-overlay {
+  background: hsla(var(--atlas-bg-primary) / 0.85);
+  backdrop-filter: blur(4px);
+}

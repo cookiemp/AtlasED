@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AtlasED - Expedition View</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link rel="preconnect" href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&f[]=cabinet-grotesk@400,500,700,800&display=swap" rel="stylesheet">
+    <style>
+        @import url('https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&f[]=cabinet-grotesk@400,500,700,800&display=swap');
+        
+        :root {
+            --bg-primary: #0f0f0f;
+            --bg-secondary: #1a1a1a;
+            --bg-tertiary: #242424;
+            --bg-elevated: #1f1f1f;
+            --accent-gold: #d4a953;
+            --accent-gold-hover: #e5bd6b;
+            --accent-gold-dim: rgba(212, 169, 83, 0.12);
+            --accent-gold-medium: rgba(212, 169, 83, 0.2);
+            --accent-gold-strong: rgba(212, 169, 83, 0.35);
+            --text-primary: #ffffff;
+            --text-secondary: #a3a3a3;
+            --text-muted: #737373;
+            --border-subtle: #2a2a2a;
+            --border-gold: rgba(212, 169, 83, 0.3);
+        }
+        
+        body {
+            font-family: 'Satoshi', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
+        .font-display {
+            font-family: 'Cabinet Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #333;
+        }
+        
+        /* Draggable region for Electron */
+        .draggable-region {
+            -webkit-app-region: drag;
+            app-region: drag;
+        }
+        
+        .no-drag {
+            -webkit-app-region: no-drag;
+            app-region: no-drag;
+        }
+        
+        /* Status colors */
+        .status-pending {
+            background: var(--bg-tertiary);
+            color: var(--text-muted);
+        }
+        
+        .status-progress {
+            background: var(--accent-gold-dim);
+            color: var(--accent-gold);
+            border: 1px solid var(--border-gold);
+        }
+        
+        .status-completed {
+            background: var(--accent-gold);
+            color: #0f0f0f;
+        }
+        
+        /* Row backgrounds */
+        .row-pending {
+            background: transparent;
+        }
+        
+        .row-progress {
+            background: var(--accent-gold-dim);
+        }
+        
+        .row-completed {
+            background: var(--accent-gold-medium);
+        }
+        
+        /* Checkbox custom styling */
+        .custom-checkbox {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--text-muted);
+            border-radius: 4px;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s ease;
+        }
+        
+        .custom-checkbox:checked {
+            background: var(--accent-gold);
+            border-color: var(--accent-gold);
+        }
+        
+        .custom-checkbox:checked::after {
+            content: '';
+            position: absolute;
+            left: 5px;
+            top: 1px;
+            width: 6px;
+            height: 11px;
+            border: solid #0f0f0f;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+        }
+        
+        /* Toggle button active state */
+        .toggle-btn.active {
+            background: var(--accent-gold-dim);
+            color: var(--accent-gold);
+            border-color: var(--border-gold);
+        }
+        
+        /* Hover effects */
+        .waypoint-row {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .waypoint-row:hover {
+            transform: translateX(4px);
+        }
+        
+        .waypoint-row.row-pending:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+        
+        .waypoint-row.row-progress:hover {
+            background: rgba(212, 169, 83, 0.18);
+        }
+        
+        .waypoint-row.row-completed:hover {
+            background: rgba(212, 169, 83, 0.45);
+        }
+        
+        /* Thumbnail aspect ratio 4:3 */
+        .thumbnail-4-3 {
+            aspect-ratio: 4/3;
+        }
+        
+        /* Grid card hover */
+        .grid-card {
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .grid-card:hover {
+            transform: translateY(-4px);
+        }
+    </style>
+</head>
+<body>
+    <div class="min-h-screen bg-[#0f0f0f] flex flex-col">
+        <!-- Custom Title Bar -->
+        <header class="draggable-region h-14 bg-[#1a1a1a] border-b border-[#2a2a2a] flex items-center justify-between px-6 select-none">
+            <div class="flex items-center gap-4 no-drag">
+                <button id="back-btn" class="flex items-center gap-2 text-[#a3a3a3] hover:text-white transition-colors duration-200">
+                    <iconify-icon icon="lucide:arrow-left" class="text-lg"></iconify-icon>
+                    <span class="text-sm font-medium">Back to Dashboard</span>
+                </button>
+            </div>
+            
+            <div class="flex items-center gap-3 no-drag">
+                <button id="settings-btn" class="w-9 h-9 flex items-center justify-center rounded-lg text-[#a3a3a3] hover:text-white hover:bg-[#242424] transition-all duration-200">
+                    <iconify-icon icon="lucide:settings" class="text-lg"></iconify-icon>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-auto">
+            <div class="max-w-6xl mx-auto px-8 py-8">
+                <!-- Expedition Header -->
+                <div class="mb-8">
+                    <div class="flex items-start justify-between mb-6">
+                        <div class="flex-1">
+                            <h1 class="font-display text-3xl font-bold text-white mb-2">Advanced Machine Learning with Python</h1>
+                            <div class="flex items-center gap-4 text-[#a3a3a3]">
+                                <span class="flex items-center gap-2">
+                                    <iconify-icon icon="lucide:clock" class="text-sm"></iconify-icon>
+                                    <span class="text-sm">12h 34m total</span>
+                                </span>
+                                <span class="flex items-center gap-2">
+                                    <iconify-icon icon="lucide:play-circle" class="text-sm"></iconify-icon>
+                                    <span class="text-sm">24 waypoints</span>
+                                </span>
+                                <span class="flex items-center gap-2">
+                                    <iconify-icon icon="lucide:calendar" class="text-sm"></iconify-icon>
+                                    <span class="text-sm">Started 3 days ago</span>
+                                </span>
+                            </div>
+                        </div>
+                        <button id="resume-expedition-btn" class="flex items-center gap-2 bg-[#d4a953] hover:bg-[#e5bd6b] text-[#0f0f0f] font-semibold px-6 py-3 rounded-lg transition-all duration-200 no-drag">
+                            <iconify-icon icon="lucide:play" class="text-lg"></iconify-icon>
+                            <span>Resume Expedition</span>
+                        </button>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="bg-[#1a1a1a] rounded-xl p-5 border border-[#2a2a2a]">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-sm text-[#a3a3a3]">Overall Progress</span>
+                            <span class="font-display font-bold text-[#d4a953] text-lg">58%</span>
+                        </div>
+                        <div class="h-2 bg-[#242424] rounded-full overflow-hidden">
+                            <div class="h-full bg-gradient-to-r from-[#d4a953] to-[#e5bd6b] rounded-full transition-all duration-500" style="width: 58%;"></div>
+                        </div>
+                        <div class="flex items-center justify-between mt-3 text-xs text-[#737373]">
+                            <span>14 of 24 waypoints completed</span>
+                            <span>~5h 12m remaining</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- View Controls & Stats -->
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center gap-4">
+                        <h2 class="font-display text-xl font-semibold text-white">Waypoints</h2>
+                        <div class="flex items-center gap-1 bg-[#1a1a1a] rounded-lg p-1 border border-[#2a2a2a]">
+                            <button id="list-view-btn" class="toggle-btn active flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200">
+                                <iconify-icon icon="lucide:list" class="text-base"></iconify-icon>
+                                <span>List</span>
+                            </button>
+                            <button id="grid-view-btn" class="toggle-btn flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-[#737373] hover:text-white transition-all duration-200">
+                                <iconify-icon icon="lucide:layout-grid" class="text-base"></iconify-icon>
+                                <span>Grid</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4 text-sm text-[#a3a3a3]">
+                        <span class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-[#242424]"></span>
+                            10 Pending
+                        </span>
+                        <span class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-[#d4a953]/30 border border-[#d4a953]/50"></span>
+                            4 In Progress
+                        </span>
+                        <span class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-[#d4a953]"></span>
+                            14 Completed
+                        </span>
+                    </div>
+                </div>
+
+                <!-- List View -->
+                <div id="list-view" class="space-y-2">
+                    <!-- Waypoint 1 - Completed -->
+                    <div class="waypoint-row row-completed rounded-xl border border-[#d4a953]/30 flex items-center gap-4 p-4 cursor-pointer">
+                        <div class="flex-shrink-0">
+                            <input type="checkbox" class="custom-checkbox" checked id="waypoint-1-check">
+                        </div>
+                        <div class="flex-shrink-0 w-20 thumbnail-4-3 bg-[#242424] rounded-lg overflow-hidden relative">
+                            <img src="https://i.ytimg.com/vi/7eh4d6sabA0/maxresdefault.jpg" alt="Thumbnail" class="w-full h-full object-cover opacity-60">
+                            <div class="absolute inset-0 flex items-center justify-center">
+                                <iconify-icon icon="lucide:check-circle" class="text-[#0f0f0f] text-2xl"></iconify-icon>
+                            </div>
+                            <span class="absolute bottom-1 right-1 bg-[#0f0f0f]/80 text-white text-[10px] px-1.5 py-0.5 rounded">12:34</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-3 mb-1">
+                                <span class="text-xs text-[#d4a953] font-medium">1/24</span>
+                                <h3 class="text-white font-medium truncate">Introduction to Machine Learning Concepts</h3>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="status-badge status-completed text-[10px] font-semibold px-2 py-0.5 rounded-full">Completed</span>
+                                <span class="text-xs text-[#737373]">Watched 2 days ago</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-sm font-display font-bold text-[#d4a953]">100%</span>
+                            <button class="w-9 h-9 flex items-center justify-center rounded-lg text-[#737373] hover:text-white hover:bg-[#242424] transition-all duration-200">
+                                <iconify-icon icon="lucide:book-open" class="text-lg"></iconify-icon>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Waypoint 2 - Completed -->
+                    <div class="waypoint-row row-completed rounded-xl border border-[#d4a953]/30 flex items-center gap-4 p-4 cursor-pointer">
+                        <div class="flex-shrink-0">
+                            <input type="checkbox" class="custom-checkbox" checked id="waypoint-2-check">
+                        </div>
+                        <div class="flex-shrink-0 w-20 thumbnail-4-3 bg-[#242424] rounded-lg overflow-hidden relative">
+                            <img src="https://i.ytimg.com/vi/7eh4d6sabA0/maxresdefault.jpg" alt="Thumbnail" class="w-full h-full object-cover opacity-60">
+                            <div class="absolute inset-0 flex items-center justify-center">
+                                <iconify-icon icon="lucide:check-circle" class="text-[#0f0f0f] text-2xl"></iconify-icon>
+                            </div>
+                            <span class="absolute bottom-1 right-1 bg-[#0f0f0f]/80 text-white text-[10px] px-1.5 py-0.5 rounded">18:22</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-3 mb-1">
+                                <span class="text-xs text-[#d4a953] font-medium">2/24</span>
+                                <h3 class="text-white font-medium truncate">Setting Up Your Python ML Environment</h3>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="status-badge status-completed text-[10px] font-semibold px-2 py-0.5 rounded-full">Completed</span>
+                                <span class="text-xs text-[#737373]">Watched 2 days ago</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-sm font-display font-bold text-[#d4a953]">100%</span>
+                            <button class="w-9 h-9 flex items-center justify-center rounded-lg text-[#737373] hover:text-white hover:bg-[#242424] transition-all duration-200">
+                                <iconify-icon icon="lucide:book-open" class="text-lg"></iconify-icon>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Waypoint 3 - In Progress -->
+                    <div class="waypoint-row row-progress rounded-xl border border-[#d4a953]/20 flex items-center gap-4 p-4 cursor-pointer">
+                        <div class="flex-shrink-0">
+                            <input type="checkbox" class="custom-checkbox" id="waypoint-3-check">
+                        </div>
+                        <div class="flex-shrink-0 w-20 thumbnail-4-3 bg-[#242424] rounded-lg overflow-hidden relative">
+                            <img src="https://i.ytimg.com/vi/7eh4d6sabA0/maxresdefault.jpg" alt="Thumbnail" class="w-full h-full object-cover">
+                            <div class="absolute inset-0 bg-gradient-to-t from-[#0f0f0f]/60 to-transparent"></div>
+                            <div class="absolute bottom-2 left-2 right-2">
+                                <div class="h-1 bg-[#242424] rounded-full overflow-hidden">
+                                    <div class="h-full bg-[#d4a953] rounded-full" style="width: 65%;"></div>
+                                </div>
+                            </div>
+                            <span class="absolute bottom-1 right-1 bg-[#0f0f0f]/80 text-white text-[10px] px-1.5 py-0.5 rounded">24:15</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-3 mb-1">
+                                <span class="text-xs text-[#d4a953] font-medium">3/24</span>
+                                <h3 class="text-white font-medium truncate">NumPy Fundamentals for Data Science</h3>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="status-badge status-progress text-[10px] font-semibold px-2 py-0.5 rounded-full">In Progress</span>
+                                <span class="text-xs text-[#a3a3a3]">15m 42s watched</span>
+                                <span class="text-xs text-[#737373]">Bookmarked</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-sm font-display font-bold text-[#d4a953]">65%</span>
+                            <button class="w-9 h-9 flex items-center justify-center rounded-lg text-[#d4a953] hover:text-white hover:bg-[#242424] transition-all duration-200">
+                                <iconify-icon icon="lucide:bookmark" class="text-lg"></iconify-icon>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Waypoint 4 - Pending -->
+                    <div class="waypoint-row row-pending rounded-xl border border-[#2a2a2a] flex items-center gap-4 p-4 cursor-pointer hover:border-[#3a3a3a]">
+                        <div class="flex-shrink-0">
+                            <input type="checkbox" class="custom-checkbox" id="waypoint-4-check">
+                        </div>
+                        <div class="flex-shrink-0 w-20 thumbnail-4-3 bg-[#242424] rounded-lg overflow-hidden relative">
+                            <img src="https://i.ytimg.com/vi/7eh4d6sabA0/maxresdefault.jpg" alt="Thumbnail" class="w-full h-full object-cover">
+                            <span class="absolute bottom-1 right-1 bg-[#0f0f0f]/80 text-white text-[10px] px-1.5 py-0.5 rounded">31:08</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-3 mb-1">
+                                <span class="text-xs text-[#737373] font-medium">4/24</span>
+                                <h3 class="text-white font-medium truncate">Pandas: Data Manipulation Masterclass</h3>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="status-badge status-pending text-[10px] font-semibold px-2 py-0.5 rounded-full">Pending</span>
+                                <span class="text-xs text-[#737373]">Not started</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-sm font-display font-bold text-[#737373]">0%</span>
+                            <button class="w-9 h-9 flex items-center justify-center rounded-lg text-[#737373] hover:text-white hover:bg-[#242424] transition-all duration-200">
+                                <iconify-icon icon="lucide:bookmark" class="text-lg"></iconify-icon>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Waypoint 5 - Pending -->
+                    <div class="waypoint-row row-pending rounded-xl border border-[#2a2a2a] flex items-center gap-4 p-4 cursor-pointer hover:border-[#3a3a3a]">
+                        <div class="flex-shrink-0">
+                            <input type="checkbox" class="custom-checkbox" id="waypoint-5-check">
+                        </div>
+                        <div class="flex-shrink-0 w-20 thumbnail-4-3 bg-[#242424] rounded-lg overflow-hidden relative">
+                            <img src="https://i.ytimg.com/vi/7eh4d6sabA0/maxresdefault.jpg" alt="Thumbnail" class="w-full h-full object-cover">
+                            <span class="absolute bottom-1 right-1 bg-[#0f0f0f]/80 text-white text-[10px] px-1.5 py-0.5 rounded">28:45</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-3 mb-1">
+                                <span class="text-xs text-[#737373] font-medium">5/24</span>
+                                <h3 class="text-white font-medium truncate">Data Visualization with Matplotlib & Seaborn</h3>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="status-badge status-pending text-[10px] font-semibold px-2 py-0.5 rounded-full">Pending</span>
+                                <span class="text-xs text-[#737373]">Not started</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-sm font-display font-bold text-[#737373]">0%</span>
+                            <button class="w-9 h-9 flex items-center justify-center rounded-lg text-[#737373] hover:text-white hover:bg-[#242424] transition-all duration-200">
+                                <iconify-icon icon="lucide:bookmark" class="text-lg"></iconify-icon>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Waypoint 6 - Pending -->
+                    <div class="waypoint-row row-pending rounded-xl border border-[#2a2a2a] flex items-center gap-4 p-4 cursor-pointer hover:border-[#3a3a3a]">
+                        <div class="flex-shrink-0">
+                            <input type="checkbox" class="custom-checkbox" id="waypoint-6-check">
+                        </div>
+                        <div class="flex-shrink-0 w-20 thumbnail-4-3 bg-[#242424] rounded-lg overflow-hidden relative">
+                            <img src="https://i.ytimg.com/vi/7eh4d6sabA0/maxresdefault.jpg" alt="Thumbnail" class="w-full h-full object-cover">
+                            <span class="absolute bottom-1 right-1 bg-[#0f0f0f]/80 text-white text-[10px] px-1.5 py-0.5 rounded">42:18</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-3 mb-1">
+                                <span class="text-xs text-[#737373] font-medium">6/24</span>
+                                <h3 class="text-white font-medium truncate">Linear Regression: Theory & Implementation</h3>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="status-badge status-pending text-[10px] font-semibold px-2 py-0.5 rounded-full">Pending</span>
+                                <span class="text-xs text-[#737373]">Not started</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-sm font-display font-bold text-[#737373]">0%</span>
+                            <button class="w-9 h-9 flex items-center justify-center rounded-lg text-[#737373] hover:text-white hover:bg-[#242424] transition-all duration-200">
+                                <iconify-icon icon="lucide:bookmark" class="text-lg"></iconify-icon>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Grid View (Hidden by default) -->
+                <div id="grid-view" class="hidden grid grid-cols-3 gap-4">
+                    <!-- Grid Card 1 - Completed -->
+                    <div class="grid-card bg-[#d4a953]/20 rounded-xl border border-[#d4a953]/30 overflow-hidden cursor-pointer">
+                        <div class="relative">
+                            <div class="aspect-video bg-[#242424] relative">
+                                <img src="https://i.ytimg.com/vi/7eh4d6sabA0/maxresdefault.jpg" alt="Thumbnail" class="w-full h-full object-cover opacity-60">
+                                <div class="absolute inset-0 flex items-center justify-center">
+                                    <iconify-icon icon="lucide:check-circle" class="text-[#d4a953] text-4xl"></iconify-icon>
+                                </div>
+                            </div>
+                            <div class="absolute top-2 left-2 bg-[#d4a953] text-[#0f0f0f] text-[10px] font-bold px-2 py-1 rounded">1/24</div>
+                            <div class="absolute top-2 right-2 w-6 h-6 bg-[#0f0f0f]/80 rounded-full flex items-center justify-center">
+                                <iconify-icon icon="lucide:bookmark" class="text-[#d4a953] text-xs"></iconify-icon>
+                            </div>
+                        </div>
+                        <div class="p-4">
+                            <h3 class="text-white font-medium text-sm mb-2 line-clamp-2">Introduction to Machine Learning Concepts</h3>
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="text-[#d4a953] font-semibold">100% Complete</span>
+                                <span class="text-[#737373]">12:34</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Grid Card 2 - Completed -->
+                    <div class="grid-card bg-[#d4a953]/20 rounded-xl border border-[#d4a953]/30 overflow-hidden cursor-pointer">
+                        <div class="relative">
+                            <div class="aspect-video bg-[#242424] relative">
+                                <img src="https://i.ytimg.com/vi/7eh4d6sabA0/maxresdefault.jpg" alt="Thumbnail" class="w-full h-full object-cover opacity-60">
+                                <div class="absolute inset-0 flex items-center justify-center">
+                                    <iconify-icon icon="lucide:check-circle" class="text-[#d4a953] text-4xl"></iconify-icon>
+                                </div>
+                            </div>
+                            <div class="absolute top-2 left-2 bg-[#d4a953] text-[#0f0f0f] text-[10px] font-bold px-2 py-1 rounded">2/24</div>
+                        </div>
+                        <div class="p-4">
+                            <h3 class="text-white font-medium text-sm mb-2 line-clamp-2">Setting Up Your Python ML Environment</h3>
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="text-[#d4a953] font-semibold">100% Complete</span>
+                                <span class="text-[#737373]">18:22</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Grid Card 3 - In Progress -->
+                    <div class="grid-card bg-[#d4a953]/10 rounded-xl border border-[#d4a953]/20 overflow-hidden cursor-pointer">
+                        <div class="relative">
+                            <div class="aspect-video bg-[#242424] relative">
+                                <img src="https://i.ytimg.com/vi/7eh4d6sabA0/maxresdefault.jpg" alt="Thumbnail" class="w-full h-full object-cover">
+                                <div class="absolute inset-0 bg-gradient-to-t from-[#0f0f0f]/80 via-transparent to-transparent"></div>
+                            </div>
+                            <div class="absolute top-2 left-2 bg-[#d4a953]/20 border border-[#d4a953]/50 text-[#d4a953] text-[10px] font-bold px-2 py-1 rounded">3/24</div>
+                            <div class="absolute bottom-0 left-0 right-0 h-1 bg-[#242424]">
+                                <div class="h-full bg-[#d4a953]" style="width: 65%"></div>
+                            </div>
+                        </div>
+                        <div class="p-4">
+                            <h3 class="text-white font-medium text-sm mb-2 line-clamp-2">NumPy Fundamentals for Data Science</h3>
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="text-[#d4a953] font-semibold">65% Watched</span>
+                                <span class="text-[#737373]">24:15</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Grid Card 4 - Pending -->
+                    <div class="grid-card bg-[#1a1a1a] rounded-xl border border-[#2a2a2a] overflow-hidden cursor-pointer hover:border-[#3a3a3a]">
+                        <div class="relative">
+                            <div class="aspect-video bg-[#242424] relative">
+                                <img src="https://i.ytimg.com/vi/7eh4d6sabA0/maxresdefault.jpg" alt="Thumbnail" class="w-full h-full object-cover">
+                            </div>
+                            <div class="absolute top-2 left-2 bg-[#242424] text-[#737373] text-[10px] font-bold px-2 py-1 rounded">4/24</div>
+                        </div>
+                        <div class="p-4">
+                            <h3 class="text-[#a3a3a3] font-medium text-sm mb-2 line-clamp-2">Pandas: Data Manipulation Masterclass</h3>
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="text-[#737373]">Not Started</span>
+                                <span class="text-[#737373]">31:08</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Grid Card 5 - Pending -->
+                    <div class="grid-card bg-[#1a1a1a] rounded-xl border border-[#2a2a2a] overflow-hidden cursor-pointer hover:border-[#3a3a3a]">
+                        <div class="relative">
+                            <div class="aspect-video bg-[#242424] relative">
+                                <img src="https://i.ytimg.com/vi/7eh4d6sabA0/maxresdefault.jpg" alt="Thumbnail" class="w-full h-full object-cover">
+                            </div>
+                            <div class="absolute top-2 left-2 bg-[#242424] text-[#737373] text-[10px] font-bold px-2 py-1 rounded">5/24</div>
+                        </div>
+                        <div class="p-4">
+                            <h3 class="text-[#a3a3a3] font-medium text-sm mb-2 line-clamp-2">Data Visualization with Matplotlib & Seaborn</h3>
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="text-[#737373]">Not Started</span>
+                                <span class="text-[#737373]">28:45</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Grid Card 6 - Pending -->
+                    <div class="grid-card bg-[#1a1a1a] rounded-xl border border-[#2a2a2a] overflow-hidden cursor-pointer hover:border-[#3a3a3a]">
+                        <div class="relative">
+                            <div class="aspect-video bg-[#242424] relative">
+                                <img src="https://i.ytimg.com/vi/7eh4d6sabA0/maxresdefault.jpg" alt="Thumbnail" class="w-full h-full object-cover">
+                            </div>
+                            <div class="absolute top-2 left-2 bg-[#242424] text-[#737373] text-[10px] font-bold px-2 py-1 rounded">6/24</div>
+                        </div>
+                        <div class="p-4">
+                            <h3 class="text-[#a3a3a3] font-medium text-sm mb-2 line-clamp-2">Linear Regression: Theory & Implementation</h3>
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="text-[#737373]">Not Started</span>
+                                <span class="text-[#737373]">42:18</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bookmarks Section -->
+                <div class="mt-12">
+                    <h2 class="font-display text-xl font-semibold text-white mb-4">Bookmarked Moments</h2>
+                    <div class="bg-[#1a1a1a] rounded-xl border border-[#2a2a2a] p-8 text-center">
+                        <div class="w-16 h-16 bg-[#242424] rounded-full flex items-center justify-center mx-auto mb-4">
+                            <iconify-icon icon="lucide:bookmark" class="text-2xl text-[#737373]"></iconify-icon>
+                        </div>
+                        <p class="text-[#a3a3a3] mb-2">No bookmarks yet</p>
+                        <p class="text-[#737373] text-sm">Bookmark important moments while watching to revisit them later</p>
+                    </div>
+                </div>
+
+                <!-- Quiz Results Section -->
+                <div class="mt-8 mb-8">
+                    <h2 class="font-display text-xl font-semibold text-white mb-4">Quiz Results</h2>
+                    <div class="bg-[#1a1a1a] rounded-xl border border-[#2a2a2a] p-8 text-center">
+                        <div class="w-16 h-16 bg-[#242424] rounded-full flex items-center justify-center mx-auto mb-4">
+                            <iconify-icon icon="lucide:help-circle" class="text-2xl text-[#737373]"></iconify-icon>
+                        </div>
+                        <p class="text-[#a3a3a3] mb-2">No quizzes taken yet</p>
+                        <p class="text-[#737373] text-sm">Take knowledge checks after each waypoint to reinforce your learning</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // View toggle functionality
+        const listViewBtn = document.getElementById('list-view-btn');
+        const gridViewBtn = document.getElementById('grid-view-btn');
+        const listView = document.getElementById('list-view');
+        const gridView = document.getElementById('grid-view');
+
+        listViewBtn.addEventListener('click', () => {
+            listViewBtn.classList.add('active');
+            gridViewBtn.classList.remove('active');
+            listView.classList.remove('hidden');
+            gridView.classList.add('hidden');
+        });
+
+        gridViewBtn.addEventListener('click', () => {
+            gridViewBtn.classList.add('active');
+            listViewBtn.classList.remove('active');
+            gridView.classList.remove('hidden');
+            listView.classList.add('hidden');
+        });
+
+        // Checkbox interaction
+        document.querySelectorAll('.custom-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', (e) => {
+                e.stopPropagation();
+            });
+        });
+
+        // Waypoint row click (would navigate to video player)
+        document.querySelectorAll('.waypoint-row, .grid-card').forEach(row => {
+            row.addEventListener('click', () => {
+                console.log('Navigate to video player');
+            });
+        });
+    </script>
+</body>
+</html>

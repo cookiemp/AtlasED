@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AtlasED - Video Player Cockpit</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link rel="preconnect" href="https://api.fontshare.com">
+    <link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@800,700,500,400&f[]=satoshi@700,500,400,300&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'atlas-bg': '#0f0f0f',
+                        'atlas-bg-secondary': '#1a1a1a',
+                        'atlas-bg-tertiary': '#242424',
+                        'atlas-border': '#333333',
+                        'atlas-gold': '#d4a953',
+                        'atlas-gold-hover': '#e5bd6b',
+                        'atlas-gold-dim': '#d4a95340',
+                        'atlas-text': '#ffffff',
+                        'atlas-text-secondary': '#a3a3a3',
+                        'atlas-text-muted': '#737373',
+                        'atlas-success': '#4ade80',
+                        'atlas-info': '#60a5fa',
+                    },
+                    fontFamily: {
+                        'display': ['Cabinet Grotesk', 'sans-serif'],
+                        'body': ['Satoshi', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Satoshi', sans-serif; }
+        .font-display { font-family: 'Cabinet Grotesk', sans-serif; }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #1a1a1a; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #444; }
+        
+        /* Tab transition */
+        .tab-content { transition: opacity 0.2s ease; }
+        .tab-content.hidden { opacity: 0; pointer-events: none; }
+        .tab-content.active { opacity: 1; }
+        
+        /* Progress bar */
+        .progress-bar { background: linear-gradient(90deg, #d4a953 0%, #e5bd6b 100%); }
+        
+        /* Code block styling */
+        .code-block {
+            background: #0a0a0a;
+            border: 1px solid #2a2a2a;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        /* Chat bubble */
+        .chat-bubble-user { background: #d4a95320; border: 1px solid #d4a95340; }
+        .chat-bubble-ai { background: #1a1a1a; border: 1px solid #333; }
+        
+        /* Drag region for title bar */
+        .drag-region { -webkit-app-region: drag; app-region: drag; }
+        .no-drag { -webkit-app-region: no-drag; app-region: no-drag; }
+        
+        /* Pause overlay */
+        .pause-overlay {
+            background: rgba(15, 15, 15, 0.85);
+            backdrop-filter: blur(4px);
+        }
+    </style>
+</head>
+<body>
+    <div class="min-h-screen bg-atlas-bg text-atlas-text flex flex-col">
+        
+        <!-- Draggable Title Bar -->
+        <div id="title-bar" class="h-10 bg-atlas-bg-secondary border-b border-atlas-border flex items-center justify-between px-4 drag-region">
+            <div class="flex items-center gap-4 no-drag">
+                <button id="back-btn" class="flex items-center gap-2 text-atlas-text-secondary hover:text-atlas-gold transition-colors group">
+                    <iconify-icon icon="lucide:arrow-left" class="text-lg group-hover:-translate-x-0.5 transition-transform"></iconify-icon>
+                    <span class="text-sm font-medium">Expedition</span>
+                </button>
+                <div class="w-px h-4 bg-atlas-border"></div>
+                <span class="text-sm text-atlas-text-muted">React Fundamentals</span>
+            </div>
+            
+            <div class="flex items-center gap-3 no-drag">
+                <button id="settings-btn" class="p-1.5 text-atlas-text-secondary hover:text-atlas-gold transition-colors">
+                    <iconify-icon icon="lucide:settings" class="text-lg"></iconify-icon>
+                </button>
+                <div class="w-px h-4 bg-atlas-border"></div>
+                <div class="flex items-center gap-2">
+                    <button class="p-1.5 text-atlas-text-muted hover:text-atlas-text-secondary transition-colors">
+                        <iconify-icon icon="lucide:minus" class="text-base"></iconify-icon>
+                    </button>
+                    <button class="p-1.5 text-atlas-text-muted hover:text-atlas-text-secondary transition-colors">
+                        <iconify-icon icon="lucide:square" class="text-base"></iconify-icon>
+                    </button>
+                    <button class="p-1.5 text-atlas-text-muted hover:text-red-400 transition-colors">
+                        <iconify-icon icon="lucide:x" class="text-base"></iconify-icon>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
+            
+            <!-- LEFT COLUMN: Video Player -->
+            <div class="lg:col-span-5 flex flex-col bg-atlas-bg border-r border-atlas-border">
+                <!-- Video Container -->
+                <div class="relative bg-black aspect-video lg:aspect-auto lg:flex-1 flex items-center justify-center group">
+                    <!-- Video Placeholder -->
+                    <div class="absolute inset-0 bg-gradient-to-br from-atlas-bg-secondary to-atlas-bg flex items-center justify-center">
+                        <div class="text-center">
+                            <div class="w-20 h-20 rounded-full bg-atlas-gold/10 border border-atlas-gold/30 flex items-center justify-center mb-4 mx-auto">
+                                <iconify-icon icon="lucide:play" class="text-3xl text-atlas-gold ml-1"></iconify-icon>
+                            </div>
+                            <p class="text-atlas-text-secondary text-sm">YouTube Video Embed</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Pause Overlay -->
+                    <div id="pause-overlay" class="pause-overlay absolute inset-0 flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-200">
+                        <button class="w-20 h-20 rounded-full bg-atlas-gold hover:bg-atlas-gold-hover flex items-center justify-center transition-all hover:scale-105 shadow-lg shadow-atlas-gold/20">
+                            <iconify-icon icon="lucide:play" class="text-3xl text-atlas-bg ml-1"></iconify-icon>
+                        </button>
+                    </div>
+                    
+                    <!-- Video Controls Overlay -->
+                    <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <!-- Progress Bar -->
+                        <div class="w-full h-1 bg-white/20 rounded-full mb-3 cursor-pointer overflow-hidden">
+                            <div class="progress-bar h-full w-1/3 rounded-full relative">
+                                <div class="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-atlas-gold rounded-full shadow-lg opacity-0 hover:opacity-100 transition-opacity"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Control Buttons -->
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-4">
+                                <button id="play-pause-btn" class="text-white hover:text-atlas-gold transition-colors">
+                                    <iconify-icon icon="lucide:pause" class="text-xl"></iconify-icon>
+                                </button>
+                                <div class="flex items-center gap-2 text-sm text-white/80">
+                                    <span>12:45</span>
+                                    <span class="text-white/40">/</span>
+                                    <span class="text-white/40">45:30</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <button class="text-white/80 hover:text-white transition-colors">
+                                    <iconify-icon icon="lucide:volume-2" class="text-lg"></iconify-icon>
+                                </button>
+                                <button class="text-white/80 hover:text-white transition-colors">
+                                    <iconify-icon icon="lucide:maximize" class="text-lg"></iconify-icon>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Video Info -->
+                <div class="p-5 border-t border-atlas-border bg-atlas-bg">
+                    <div class="flex items-start justify-between gap-4 mb-2">
+                        <h2 class="font-display font-bold text-lg text-atlas-text leading-tight">3. Understanding useState and Component State</h2>
+                        <span class="text-xs text-atlas-text-muted bg-atlas-bg-tertiary px-2 py-1 rounded flex-shrink-0">Waypoint 3/12</span>
+                    </div>
+                    <p class="text-sm text-atlas-text-secondary leading-relaxed">Learn how to manage component-level state using the useState hook, including initialization patterns and state update batching.</p>
+                </div>
+            </div>
+            
+            <!-- CENTER COLUMN: Navigation & Info -->
+            <div class="lg:col-span-2 bg-atlas-bg-secondary border-r border-atlas-border flex flex-col">
+                <!-- Waypoint Info -->
+                <div class="p-5 border-b border-atlas-border">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="w-8 h-8 rounded-lg bg-atlas-gold/10 border border-atlas-gold/30 flex items-center justify-center">
+                            <iconify-icon icon="lucide:map-pin" class="text-atlas-gold text-sm"></iconify-icon>
+                        </div>
+                        <span class="text-xs text-atlas-text-muted uppercase tracking-wider">Current</span>
+                    </div>
+                    <h3 class="font-display font-bold text-atlas-text mb-1">useState Deep Dive</h3>
+                    <p class="text-xs text-atlas-text-secondary leading-relaxed">Duration: 45:30</p>
+                </div>
+                
+                <!-- Description -->
+                <div class="p-5 border-b border-atlas-border flex-1 overflow-auto">
+                    <h4 class="text-xs text-atlas-text-muted uppercase tracking-wider mb-3">About this Waypoint</h4>
+                    <p class="text-sm text-atlas-text-secondary leading-relaxed">
+                        This video covers the fundamentals of React's useState hook, including proper initialization patterns, the rules of hooks, and common pitfalls when managing component state.
+                    </p>
+                    
+                    <div class="mt-4 flex flex-wrap gap-2">
+                        <span class="text-xs bg-atlas-bg-tertiary text-atlas-text-secondary px-2 py-1 rounded">Hooks</span>
+                        <span class="text-xs bg-atlas-bg-tertiary text-atlas-text-secondary px-2 py-1 rounded">State</span>
+                        <span class="text-xs bg-atlas-bg-tertiary text-atlas-text-secondary px-2 py-1 rounded">Beginner</span>
+                    </div>
+                </div>
+                
+                <!-- Navigation Actions -->
+                <div class="p-5 space-y-3">
+                    <button id="prev-waypoint-btn" class="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-atlas-bg-tertiary hover:bg-atlas-border text-atlas-text-secondary hover:text-atlas-text rounded-lg transition-all text-sm font-medium">
+                        <iconify-icon icon="lucide:chevron-left" class="text-sm"></iconify-icon>
+                        Previous
+                    </button>
+                    
+                    <button id="mark-complete-btn" class="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-atlas-gold hover:bg-atlas-gold-hover text-atlas-bg rounded-lg transition-all text-sm font-bold">
+                        <iconify-icon icon="lucide:check-circle" class="text-sm"></iconify-icon>
+                        Mark Complete
+                    </button>
+                    
+                    <button id="next-waypoint-btn" class="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-atlas-bg-tertiary hover:bg-atlas-border text-atlas-text-secondary hover:text-atlas-text rounded-lg transition-all text-sm font-medium">
+                        Next
+                        <iconify-icon icon="lucide:chevron-right" class="text-sm"></iconify-icon>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- RIGHT COLUMN: Tabs -->
+            <div class="lg:col-span-5 bg-atlas-bg flex flex-col">
+                <!-- Tab Headers -->
+                <div class="flex border-b border-atlas-border bg-atlas-bg-secondary">
+                    <button id="tab-field-guide" class="flex-1 flex items-center justify-center gap-2 py-4 px-6 text-sm font-medium border-b-2 border-atlas-gold text-atlas-gold transition-colors">
+                        <iconify-icon icon="lucide:book-open" class="text-lg"></iconify-icon>
+                        Field Guide
+                    </button>
+                    <button id="tab-compass-ai" class="flex-1 flex items-center justify-center gap-2 py-4 px-6 text-sm font-medium border-b-2 border-transparent text-atlas-text-secondary hover:text-atlas-text transition-colors">
+                        <iconify-icon icon="lucide:compass" class="text-lg"></iconify-icon>
+                        Compass AI
+                    </button>
+                </div>
+                
+                <!-- Tab Content: Field Guide -->
+                <div id="content-field-guide" class="tab-content active flex-1 overflow-auto p-6">
+                    <!-- Summary -->
+                    <div class="mb-6">
+                        <h3 class="font-display font-bold text-atlas-text mb-3 flex items-center gap-2">
+                            <iconify-icon icon="lucide:scroll-text" class="text-atlas-gold"></iconify-icon>
+                            Summary
+                        </h3>
+                        <p class="text-sm text-atlas-text-secondary leading-relaxed">
+                            The useState hook is React's primary mechanism for adding state to functional components. It returns a state value and a setter function, enabling components to remember values between renders. Understanding the nuances of state initialization and update patterns is crucial for avoiding common bugs.
+                        </p>
+                    </div>
+                    
+                    <!-- Key Concepts -->
+                    <div class="mb-6">
+                        <h3 class="font-display font-bold text-atlas-text mb-3 flex items-center gap-2">
+                            <iconify-icon icon="lucide:key" class="text-atlas-gold"></iconify-icon>
+                            Key Concepts
+                        </h3>
+                        <ul class="space-y-2">
+                            <li class="flex items-start gap-3 text-sm">
+                                <span class="w-5 h-5 rounded bg-atlas-gold/10 border border-atlas-gold/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                    <span class="text-atlas-gold text-xs font-bold">1</span>
+                                </span>
+                                <span class="text-atlas-text-secondary">State persists across re-renders but initializing with a function prevents unnecessary calculations</span>
+                            </li>
+                            <li class="flex items-start gap-3 text-sm">
+                                <span class="w-5 h-5 rounded bg-atlas-gold/10 border border-atlas-gold/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                    <span class="text-atlas-gold text-xs font-bold">2</span>
+                                </span>
+                                <span class="text-atlas-text-secondary">State updates are batched for performance - multiple setState calls may trigger a single re-render</span>
+                            </li>
+                            <li class="flex items-start gap-3 text-sm">
+                                <span class="w-5 h-5 rounded bg-atlas-gold/10 border border-atlas-gold/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                    <span class="text-atlas-gold text-xs font-bold">3</span>
+                                </span>
+                                <span class="text-atlas-text-secondary">The setter function accepts a callback when the new state depends on the previous state</span>
+                            </li>
+                        </ul>
+                    </div>
+                    
+                    <!-- Code Examples -->
+                    <div class="mb-6">
+                        <h3 class="font-display font-bold text-atlas-text mb-3 flex items-center gap-2">
+                            <iconify-icon icon="lucide:code-2" class="text-atlas-gold"></iconify-icon>
+                            Code Example
+                        </h3>
+                        <div class="code-block rounded-lg p-4 overflow-x-auto">
+                            <pre class="text-xs text-atlas-text-secondary leading-relaxed"><span class="text-purple-400">const</span> [count, setCount] = <span class="text-yellow-400">useState</span>(() => <span class="text-orange-400">0</span>);
+
+<span class="text-purple-400">const</span> <span class="text-blue-400">increment</span> = () => {
+  <span class="text-yellow-400">setCount</span>(<span class="text-blue-400">prev</span> => prev + <span class="text-orange-400">1</span>);
+};</pre>
+                        </div>
+                    </div>
+                    
+                    <!-- Important Notes -->
+                    <div class="bg-atlas-gold/5 border border-atlas-gold/20 rounded-lg p-4">
+                        <div class="flex items-start gap-3">
+                            <iconify-icon icon="lucide:alert-circle" class="text-atlas-gold text-lg flex-shrink-0 mt-0.5"></iconify-icon>
+                            <div>
+                                <h4 class="font-bold text-atlas-text text-sm mb-1">Remember</h4>
+                                <p class="text-sm text-atlas-text-secondary">Always use the functional update form when the new state depends on the previous state to avoid stale closure bugs.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Tab Content: Compass AI -->
+                <div id="content-compass-ai" class="tab-content hidden flex-1 flex flex-col">
+                    <!-- Chat Messages -->
+                    <div class="flex-1 overflow-auto p-6 space-y-4">
+                        <!-- AI Welcome -->
+                        <div class="flex gap-3">
+                            <div class="w-8 h-8 rounded-full bg-atlas-gold/10 border border-atlas-gold/30 flex items-center justify-center flex-shrink-0">
+                                <iconify-icon icon="lucide:compass" class="text-atlas-gold text-sm"></iconify-icon>
+                            </div>
+                            <div class="chat-bubble-ai rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%]">
+                                <p class="text-sm text-atlas-text-secondary leading-relaxed">Hello! I'm Compass, your AI learning assistant. I can answer questions about this video, explain concepts in different ways, or provide additional examples. What would you like to know about useState?</p>
+                            </div>
+                        </div>
+                        
+                        <!-- User Message -->
+                        <div class="flex gap-3 justify-end">
+                            <div class="chat-bubble-user rounded-2xl rounded-tr-sm px-4 py-3 max-w-[85%]">
+                                <p class="text-sm text-atlas-text leading-relaxed">What's the difference between passing a value vs a function to useState?</p>
+                            </div>
+                        </div>
+                        
+                        <!-- AI Response -->
+                        <div class="flex gap-3">
+                            <div class="w-8 h-8 rounded-full bg-atlas-gold/10 border border-atlas-gold/30 flex items-center justify-center flex-shrink-0">
+                                <iconify-icon icon="lucide:compass" class="text-atlas-gold text-sm"></iconify-icon>
+                            </div>
+                            <div class="chat-bubble-ai rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%]">
+                                <p class="text-sm text-atlas-text-secondary leading-relaxed mb-2">Great question! When you pass a <strong class="text-atlas-text">value</strong> directly to useState, it's evaluated on every render.</p>
+                                <p class="text-sm text-atlas-text-secondary leading-relaxed mb-2">When you pass a <strong class="text-atlas-text">function</strong> (lazy initialization), React only calls it during the initial render, which can improve performance for expensive calculations.</p>
+                                <p class="text-sm text-atlas-text-secondary leading-relaxed">For updates, always use the functional form when the new state depends on the previous value.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Chat Input -->
+                    <div class="p-4 border-t border-atlas-border bg-atlas-bg-secondary">
+                        <div class="flex gap-3">
+                            <div class="flex-1 relative">
+                                <input type="text" placeholder="Ask Compass about this video..." class="w-full bg-atlas-bg-tertiary border border-atlas-border rounded-xl px-4 py-3 text-sm text-atlas-text placeholder-atlas-text-muted focus:outline-none focus:border-atlas-gold/50 focus:ring-1 focus:ring-atlas-gold/50 transition-all">
+                            </div>
+                            <button id="send-message-btn" class="w-11 h-11 bg-atlas-gold hover:bg-atlas-gold-hover rounded-xl flex items-center justify-center transition-colors flex-shrink-0">
+                                <iconify-icon icon="lucide:send" class="text-atlas-bg text-lg"></iconify-icon>
+                            </button>
+                        </div>
+                        <p class="text-xs text-atlas-text-muted mt-2 text-center">Compass AI may produce inaccurate information. Always verify important concepts.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tab switching functionality
+        const tabFieldGuide = document.getElementById('tab-field-guide');
+        const tabCompassAI = document.getElementById('tab-compass-ai');
+        const contentFieldGuide = document.getElementById('content-field-guide');
+        const contentCompassAI = document.getElementById('content-compass-ai');
+        
+        tabFieldGuide.addEventListener('click', () => {
+            tabFieldGuide.classList.add('border-atlas-gold', 'text-atlas-gold');
+            tabFieldGuide.classList.remove('border-transparent', 'text-atlas-text-secondary');
+            tabCompassAI.classList.remove('border-atlas-gold', 'text-atlas-gold');
+            tabCompassAI.classList.add('border-transparent', 'text-atlas-text-secondary');
+            contentFieldGuide.classList.remove('hidden');
+            contentFieldGuide.classList.add('active');
+            contentCompassAI.classList.add('hidden');
+            contentCompassAI.classList.remove('active');
+        });
+        
+        tabCompassAI.addEventListener('click', () => {
+            tabCompassAI.classList.add('border-atlas-gold', 'text-atlas-gold');
+            tabCompassAI.classList.remove('border-transparent', 'text-atlas-text-secondary');
+            tabFieldGuide.classList.remove('border-atlas-gold', 'text-atlas-gold');
+            tabFieldGuide.classList.add('border-transparent', 'text-atlas-text-secondary');
+            contentCompassAI.classList.remove('hidden');
+            contentCompassAI.classList.add('active');
+            contentFieldGuide.classList.add('hidden');
+            contentFieldGuide.classList.remove('active');
+        });
+        
+        // Play/Pause toggle
+        const playPauseBtn = document.getElementById('play-pause-btn');
+        const pauseOverlay = document.getElementById('pause-overlay');
+        let isPlaying = true;
+        
+        function togglePlay() {
+            isPlaying = !isPlaying;
+            if (isPlaying) {
+                playPauseBtn.innerHTML = '<iconify-icon icon="lucide:pause" class="text-xl"></iconify-icon>';
+                pauseOverlay.classList.remove('opacity-100', 'pointer-events-auto');
+                pauseOverlay.classList.add('opacity-0', 'pointer-events-none');
+            } else {
+                playPauseBtn.innerHTML = '<iconify-icon icon="lucide:play" class="text-xl"></iconify-icon>';
+                pauseOverlay.classList.remove('opacity-0', 'pointer-events-none');
+                pauseOverlay.classList.add('opacity-100', 'pointer-events-auto');
+            }
+        }
+        
+        playPauseBtn.addEventListener('click', togglePlay);
+        pauseOverlay.addEventListener('click', togglePlay);
+    </script>
+</body>
+</html>

@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AtlasED - React Fundamentals Expedition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link rel="preconnect" href="https://api.fontshare.com">
+    <link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@800,700,500,400&f[]=satoshi@700,500,400,300&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'atlas-bg': '#0f0f0f',
+                        'atlas-bg-secondary': '#1a1a1a',
+                        'atlas-bg-tertiary': '#242424',
+                        'atlas-border': '#333333',
+                        'atlas-gold': '#d4a953',
+                        'atlas-gold-hover': '#e5bd6b',
+                        'atlas-text': '#ffffff',
+                        'atlas-text-secondary': '#a3a3a3',
+                        'atlas-text-muted': '#737373',
+                        'atlas-success': '#4ade80',
+                        'atlas-info': '#60a5fa',
+                        'atlas-warning': '#fbbf24',
+                    },
+                    fontFamily: {
+                        'display': ['Cabinet Grotesk', 'sans-serif'],
+                        'body': ['Satoshi', 'sans-serif'],
+                        'mono': ['JetBrains Mono', 'monospace'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Satoshi', sans-serif;
+        }
+        .font-display {
+            font-family: 'Cabinet Grotesk', sans-serif;
+        }
+        .drag-region {
+            -webkit-app-region: drag;
+        }
+        .no-drag {
+            -webkit-app-region: no-drag;
+        }
+        .skeleton {
+            background: linear-gradient(90deg, #242424 25%, #333333 50%, #242424 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        .waypoint-row {
+            transition: all 0.2s ease;
+        }
+        .waypoint-row:hover {
+            background-color: #242424;
+            transform: translateX(4px);
+        }
+        .progress-fill {
+            transition: width 0.6s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <div class="min-h-screen bg-atlas-bg text-atlas-text flex flex-col">
+        <!-- Draggable Title Bar -->
+        <header class="drag-region h-14 bg-atlas-bg-secondary border-b border-atlas-border flex items-center justify-between px-6 select-none">
+            <div class="flex items-center gap-6 no-drag">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-atlas-gold flex items-center justify-center">
+                        <iconify-icon icon="lucide:compass" class="text-atlas-bg text-lg"></iconify-icon>
+                    </div>
+                    <span class="font-display font-bold text-lg tracking-tight">AtlasED</span>
+                </div>
+                <div class="w-px h-6 bg-atlas-border"></div>
+                <button id="nav-back-btn" class="flex items-center gap-2 text-atlas-text-secondary hover:text-white transition-colors duration-200 group">
+                    <iconify-icon icon="lucide:arrow-left" class="text-lg group-hover:-translate-x-0.5 transition-transform duration-200"></iconify-icon>
+                    <span class="text-sm font-medium">Back</span>
+                </button>
+            </div>
+            <div class="no-drag">
+                <button id="nav-settings-btn" class="flex items-center gap-2 text-atlas-text-secondary hover:text-white transition-colors duration-200 group px-3 py-1.5 rounded-lg hover:bg-atlas-bg-tertiary">
+                    <iconify-icon icon="lucide:settings" class="text-lg group-hover:rotate-90 transition-transform duration-300"></iconify-icon>
+                    <span class="text-sm font-medium">Settings</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-auto">
+            <div class="max-w-7xl mx-auto px-8 py-8">
+                <!-- Expedition Header -->
+                <div class="mb-8">
+                    <div class="flex items-start justify-between mb-6">
+                        <div>
+                            <div class="flex items-center gap-3 mb-2">
+                                <span class="text-atlas-gold text-sm font-medium tracking-wide uppercase">Expedition</span>
+                                <span class="text-atlas-text-muted">•</span>
+                                <span class="text-atlas-text-secondary text-sm">Frontend Development</span>
+                            </div>
+                            <h1 class="font-display font-bold text-4xl text-white tracking-tight mb-3">React Fundamentals</h1>
+                            <p class="text-atlas-text-secondary text-base max-w-2xl leading-relaxed">
+                                Master the core concepts of React including components, props, state, hooks, and modern patterns. Build a solid foundation for modern web development.
+                            </p>
+                        </div>
+                        <button id="expedition-actions-btn" class="flex items-center gap-2 px-4 py-2.5 bg-atlas-bg-tertiary hover:bg-atlas-border border border-atlas-border rounded-lg text-atlas-text-secondary hover:text-white transition-all duration-200">
+                            <iconify-icon icon="lucide:more-vertical" class="text-lg"></iconify-icon>
+                        </button>
+                    </div>
+
+                    <!-- Meta Info & Progress -->
+                    <div class="bg-atlas-bg-secondary border border-atlas-border rounded-xl p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-8">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-lg bg-atlas-bg-tertiary flex items-center justify-center">
+                                        <iconify-icon icon="lucide:map-pin" class="text-atlas-gold text-xl"></iconify-icon>
+                                    </div>
+                                    <div>
+                                        <p class="text-atlas-text-muted text-xs uppercase tracking-wider font-medium">Waypoints</p>
+                                        <p class="text-white font-display font-bold text-lg">12</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-lg bg-atlas-bg-tertiary flex items-center justify-center">
+                                        <iconify-icon icon="lucide:clock" class="text-atlas-info text-xl"></iconify-icon>
+                                    </div>
+                                    <div>
+                                        <p class="text-atlas-text-muted text-xs uppercase tracking-wider font-medium">Est. Time</p>
+                                        <p class="text-white font-display font-bold text-lg">8h 45m</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-lg bg-atlas-bg-tertiary flex items-center justify-center">
+                                        <iconify-icon icon="lucide:calendar" class="text-atlas-success text-xl"></iconify-icon>
+                                    </div>
+                                    <div>
+                                        <p class="text-atlas-text-muted text-xs uppercase tracking-wider font-medium">Started</p>
+                                        <p class="text-white font-display font-bold text-lg">Jan 15</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-atlas-gold font-display font-bold text-3xl">45%</p>
+                                <p class="text-atlas-text-muted text-sm">Complete</p>
+                            </div>
+                        </div>
+                        <!-- Progress Bar -->
+                        <div class="relative">
+                            <div class="h-2 bg-atlas-bg-tertiary rounded-full overflow-hidden">
+                                <div class="progress-fill h-full bg-gradient-to-r from-atlas-gold to-atlas-gold-hover rounded-full" style="width: 45%;"></div>
+                            </div>
+                            <div class="flex justify-between mt-2 text-xs text-atlas-text-muted">
+                                <span>5 of 12 waypoints charted</span>
+                                <span>Last active: 2 hours ago</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filters & Sort -->
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center gap-3">
+                        <button id="filter-all-btn" class="px-4 py-2 bg-atlas-gold text-atlas-bg font-medium text-sm rounded-lg hover:bg-atlas-gold-hover transition-colors">
+                            All Waypoints
+                        </button>
+                        <button id="filter-in-progress-btn" class="px-4 py-2 bg-atlas-bg-secondary border border-atlas-border text-atlas-text-secondary font-medium text-sm rounded-lg hover:bg-atlas-bg-tertiary hover:text-white transition-all">
+                            In Progress
+                        </button>
+                        <button id="filter-completed-btn" class="px-4 py-2 bg-atlas-bg-secondary border border-atlas-border text-atlas-text-secondary font-medium text-sm rounded-lg hover:bg-atlas-bg-tertiary hover:text-white transition-all">
+                            Completed
+                        </button>
+                        <button id="filter-not-started-btn" class="px-4 py-2 bg-atlas-bg-secondary border border-atlas-border text-atlas-text-secondary font-medium text-sm rounded-lg hover:bg-atlas-bg-tertiary hover:text-white transition-all">
+                            Not Started
+                        </button>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-atlas-text-muted text-sm">Sort by:</span>
+                        <select id="sort-select" class="bg-atlas-bg-secondary border border-atlas-border text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-atlas-gold transition-colors cursor-pointer">
+                            <option value="order">Default Order</option>
+                            <option value="date">Last Completed</option>
+                            <option value="duration">Duration</option>
+                            <option value="status">Status</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Waypoints List -->
+                <div class="bg-atlas-bg-secondary border border-atlas-border rounded-xl overflow-hidden">
+                    <!-- Table Header -->
+                    <div class="grid grid-cols-12 gap-4 px-6 py-4 bg-atlas-bg-tertiary border-b border-atlas-border text-atlas-text-muted text-xs uppercase tracking-wider font-medium">
+                        <div class="col-span-5">Waypoint</div>
+                        <div class="col-span-1 text-center">Duration</div>
+                        <div class="col-span-2 text-center">Status</div>
+                        <div class="col-span-2 text-center">Field Guide</div>
+                        <div class="col-span-1 text-center">Quiz</div>
+                        <div class="col-span-1 text-right">Last Viewed</div>
+                    </div>
+
+                    <!-- Waypoint Rows -->
+                    <div class="divide-y divide-atlas-border">
+                        <!-- Waypoint 1 - Completed -->
+                        <div class="waypoint-row grid grid-cols-12 gap-4 px-6 py-4 items-center cursor-pointer group">
+                            <div class="col-span-5 flex items-center gap-4">
+                                <div class="w-10 h-10 rounded-lg bg-atlas-success/10 flex items-center justify-center flex-shrink-0">
+                                    <iconify-icon icon="lucide:check-circle" class="text-atlas-success text-xl"></iconify-icon>
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="text-white font-medium truncate group-hover:text-atlas-gold transition-colors">1. Introduction to React</p>
+                                    <p class="text-atlas-text-muted text-sm truncate">What is React and why use it?</p>
+                                </div>
+                            </div>
+                            <div class="col-span-1 text-center text-atlas-text-secondary text-sm">12:34</div>
+                            <div class="col-span-2 flex justify-center">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-atlas-success/10 text-atlas-success text-xs font-medium rounded-full">
+                                    <iconify-icon icon="lucide:check" class="text-sm"></iconify-icon>
+                                    Completed
+                                </span>
+                            </div>
+                            <div class="col-span-2 flex justify-center">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-atlas-gold/10 text-atlas-gold text-xs font-medium rounded-full">
+                                    <iconify-icon icon="lucide:file-text" class="text-sm"></iconify-icon>
+                                    Charted
+                                </span>
+                            </div>
+                            <div class="col-span-1 flex justify-center">
+                                <iconify-icon icon="lucide:check-circle" class="text-atlas-success text-xl"></iconify-icon>
+                            </div>
+                            <div class="col-span-1 text-right text-atlas-text-secondary text-sm">Jan 15</div>
+                        </div>
+
+                        <!-- Waypoint 2 - Completed -->
+                        <div class="waypoint-row grid grid-cols-12 gap-4 px-6 py-4 items-center cursor-pointer group">
+                            <div class="col-span-5 flex items-center gap-4">
+                                <div class="w-10 h-10 rounded-lg bg-atlas-success/10 flex items-center justify-center flex-shrink-0">
+                                    <iconify-icon icon="lucide:check-circle" class="text-atlas-success text-xl"></iconify-icon>
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="text-white font-medium truncate group-hover:text-atlas-gold transition-colors">2. Setting Up Your Environment</p>
+                                    <p class="text-atlas-text-muted text-sm truncate">Node.js, npm, and create-react-app</p>
+                                </div>
+                            </div>
+                            <div class="col-span-1 text-center text-atlas-text-secondary text-sm">18:22</div>
+                            <div class="col-span-2 flex justify-center">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-atlas-success/10 text-atlas-success text-xs font-medium rounded-full">
+                                    <iconify-icon icon="lucide:check" class="text-sm"></iconify-icon>
+                                    Completed
+                                </span>
+                            </div>
+                            <div class="col-span-2 flex justify-center">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-atlas-gold/10 text-atlas-gold text-xs font-medium rounded-full">
+                                    <iconify-icon icon="lucide:file-text" class="text-sm"></iconify-icon>
+                                    Charted
+                                </span>
+                            </div>
+                            <div class="col-span-1 flex justify-center">
+                                <iconify-icon icon="lucide:check-circle" class="text-atlas-success text-xl"></iconify-icon>
+                            </div>
+                            <div class="col-span-1 text-right text-atlas-text-secondary text-sm">Jan 16</div>
+                        </div>
+
+                        <!-- Waypoint 3 - Completed -->
+                        <div class="waypoint-row grid grid-cols-12 gap-4 px-6 py-4 items-center cursor-pointer group">
+                            <div class="col-span-5 flex items-center gap-4">
+                                <div class="w-10 h-10 rounded-lg bg-atlas-success/10 flex items-center justify-center flex-shrink-0">
+                                    <iconify-icon icon="lucide:check-circle" class="text-atlas-success text-xl"></iconify-icon>
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="text-white font-medium truncate group-hover:text-atlas-gold transition-colors">3. JSX Deep Dive</p>
+                                    <p class="text-atlas-text-muted text-sm truncate">Understanding JSX syntax and expressions</p>
+                                </div>
+                            </div>
+                            <div class="col-span-1 text-center text-atlas-text-secondary text-sm">24:15</div>
+                            <div class="col-span-2 flex justify-center">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-atlas-success/10 text-atlas-success text-xs font-medium rounded-full">
+                                    <iconify-icon icon="lucide:check" class="text-sm"></iconify-icon>
+                                    Completed
+                                </span>
+                            </div>
+                            <div class="col-span-2 flex justify-center">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-atlas-gold/10 text-atlas-gold text-xs font-medium rounded-full">
+                                    <iconify-icon icon="lucide:file-text" class="text-sm"></iconify-icon>
+                                    Charted
+                                </span>
+                            </div>
+                            <div class="col-span-1 flex justify-center">
+                                <iconify-icon icon="lucide:check-circle" class="text-atlas-success text-xl"></iconify-icon>
+                            </div>
+                            <div class="col-span-1 text-right text-atlas-text-secondary text-sm">Jan 18</div>
+                        </div>
+
+                        <!-- Waypoint 4 - Completed -->
+                        <div class="waypoint-row grid grid-cols-12 gap-4 px-6 py-4 items-center cursor-pointer group">
+                            <div class="col-span-5 flex items-center gap-4">
+                                <div class="w-10 h-10 rounded-lg bg-atlas-success/10 flex items-center justify-center flex-shrink-0">
+                                    <iconify-icon icon="lucide:check-circle" class="text-atlas-success text-xl"></iconify-icon>
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="text-white font-medium truncate group-hover:text-atlas-gold transition-colors">4. Components and Props</p>
+                                    <p class="text-atlas-text-muted text-sm truncate">Building reusable component architecture</p>
+                                </div>
+                            </div>
+                            <div class="col-span-1 text-center text-atlas-text-secondary text-sm">32:08</div>
+                            <div class="col-span-2 flex justify-center">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-atlas-success/10 text-atlas-success text-xs font-medium rounded-full">
+                                    <iconify-icon icon="lucide:check" class="text-sm"></iconify-icon>
+                                    Completed
+                                </span>
+                            </div>
+                            <div class="col-span-2 flex justify-center">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-atlas-gold/10 text-atlas-gold text-xs font-medium rounded-full">
+                                    <iconify-icon icon="lucide:file-text" class="text-sm"></iconify-icon>
+                                    Charted
+                                </span>
+                            </div>
+                            <div class="col-span-1 flex justify-center">
+                                <iconify-icon icon="lucide:check-circle" class="text-atlas-success text-xl"></iconify-icon>
+                            </div>
+                            <div class="col-span-1 text-right text-atlas-text-secondary text-sm">Jan 20</div>
+                        </div>
+
+                        <!-- Waypoint 5 - Completed -->
+                        <div class="waypoint-row grid grid-cols-12 gap-4 px-6 py-4 items-center cursor-pointer group">
+                            <div class="col-span-5 flex items-center gap-4">
+                                <div class="w-10 h-10 rounded-lg bg-atlas-success/10 flex items-center justify-center flex-shrink-0">
+                                    <iconify-icon icon="lucide:check-circle" class="text-atlas-success text-xl"></iconify-icon>
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="text-white font-medium truncate group-hover:text-atlas-gold transition-colors">5. State and Lifecycle</p>
+                                    <p class="text-atlas-text-muted text-sm truncate">Managing component state and effects</p>
+                                </div>
+                            </div>
+                            <div class="col-span-1 text-center text-atlas-text-secondary text-sm">28:45</div>
+                            <div class="col-span-2 flex justify-center">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-atlas-success/10 text-atlas-success text-xs font-medium rounded-full">
+                                    <iconify-icon icon="lucide:check" class="text-sm"></iconify-icon>
+                                    Completed
+                                </span>
+                            </div>
+                            <div class="col-span-2 flex justify-center">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-atlas-gold/10 text-atlas-gold text-xs font-medium rounded-full">
+                                    <iconify-icon icon="lucide:file-text" class="text-sm"></iconify-icon>
+                                    Charted
+                                </span>
+                            </div>
+                            <div class="col-span-1 flex justify-center">
+                                <iconify-icon icon="lucide:check-circle" class="text-atlas-success text-xl"></iconify-icon>
+                            </div>
+                            <div class="col-span-1 text-right text-atlas-text-secondary text-sm">Jan 22</div>
+                        </div>
+
+                        <!-- Waypoint 6 - In Progress -->
+                        <div class="waypoint-row grid grid-cols-12 gap-4 px-6 py-4 items-center cursor-pointer group bg-atlas-bg-tertiary/30 border-l-2 border-atlas-gold">
+                            <div class="col-span-5 flex items-center gap-4">
+                                <div class="w-10 h-10 rounded-lg bg-atlas-info/10 flex items-center justify-center flex-shrink-0">
+                                    <iconify-icon icon="lucide:play-circle" class="text-atlas-info text-xl"></iconify-icon>
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="text-white font-medium truncate group-hover:text-atlas-gold transition-colors">6. Handling Events</p>
+                                    <p class="text-atlas-text-muted text-sm truncate">onClick, onChange, and event handling patterns</p>
+                                </div>
+                                <span class="px-2 py-0.5 bg-atlas-gold text-atlas-bg text-xs font-bold rounded">CURRENT</span>
+                            </div>
+                            <div class="col-span-1 text-center text-atlas-text-secondary text-sm">19:33</div>
+                            <div class="col-span-2 flex justify-center">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-atlas-info/10 text-atlas-info text-xs font-medium rounded-full">
+                                    <iconify-icon icon="lucide:loader-2" class="text-sm animate-spin"></iconify-icon>
+                                    In Progress
+                                </span>
+                            </div>
+                            <div class="col-span-2 flex justify-center">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-atlas-bg-tertiary text-atlas-text-muted text-xs font-medium rounded-full border border-atlas-border">
+                                    <iconify-icon icon="lucide:file-text" class="text-sm"></iconify-icon>
+                                    Not Charted
+                                </span>
+                            </div>
+                            <div class="col-span-1 flex justify-center">
+                                <iconify-icon icon="lucide:lock" class="text-atlas-text-muted text-xl"></iconify-icon>
+                            </div>
+                            <div class="col-span-1 text-right text-atlas-text-secondary text-sm">2h ago</div>
+                        </div>
+
+                        <!-- Waypoint 7 - Not Started -->
+                        <div class="waypoint-row grid grid-cols-12 gap-4 px-6 py-4 items-center cursor-pointer group opacity-75">
+                            <div class="col-span-5 flex items-center gap-4">
+                                <div class="w-10 h-10 rounded-lg bg-atlas-bg-tertiary flex items-center justify-center flex-shrink-0 border border-atlas-border">
+                                    <iconify-icon icon="lucide:circle" class="text-atlas-text-muted text-xl"></iconify-icon>
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="text-white font-medium truncate group-hover:text-atlas-gold transition-colors">7. Conditional Rendering</p>
+                                    <p class="text-atlas-text-muted text-sm truncate">if statements, ternary operators, && operator</p>
+                                </div>
+                            </div>
+                            <div class="col-span-1 text-center text-atlas-text-secondary text-sm">15:20</div>
+                            <div class="col-span-2 flex justify-center">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-atlas-bg-tertiary text-atlas-text-muted text-xs font-medium rounded-full border border-atlas-border">
+                                    <iconify-icon icon="lucide:circle" class="text-sm"></iconify-icon>
+                                    Not Started
+                                </span>
+                            </div>
+                            <div class="col-span-2 flex justify-center">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-atlas-bg-tertiary text-atlas-text-muted text-xs font-medium rounded-full border border-atlas-border">
+                                    <iconify-icon icon="lucide:file-text" class="text-sm"></iconify-icon>
+                                    Not Charted
+                                </span>
+                            </div>
+                            <div class="col-span-1 flex justify-center">
+                                <iconify-icon icon="lucide:lock" class="text-atlas-text-muted text-xl"></iconify-icon>
+                            </div>
+                            <div class="col-span-1 text-right text-atlas-text-muted text-sm">—</div>
+                        </div>
+
+                        <!-- Waypoint 8 - Not Started -->
+                        <div class="waypoint-row grid grid-cols-12 gap-4 px-6 py-4 items-center cursor-pointer group opacity-75">
+                            <div class="col-span-5 flex items-center gap-4">
+                                <div class="w-10 h-10 rounded-lg bg-atlas-bg-tertiary flex items-center justify-center flex-shrink-0 border border-atlas-border">
+                                    <iconify-icon icon="lucide:circle" class="text-atlas-text-muted text-xl"></iconify-icon>
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="text-white font-medium truncate group-hover:text-atlas-gold transition-colors">8. Lists and Keys</p>
+                                    <p class="text-atlas-text-muted text-sm truncate">Rendering lists with map() and key prop</p>
+                                </div>
+                            </div>
+                            <div class="col-span-1 text-center text-atlas-text-secondary text-sm">22:18</div>
+                            <div class="col-span-2 flex justify-center">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-atlas-bg-tertiary text-atlas-text-muted text-xs font-medium rounded-full border border-atlas-border">
+                                    <iconify-icon icon="lucide:circle" class="text-sm"></iconify-icon>
+                                    Not Started
+                                </span>
+                            </div>
+                            <div class="col-span-2 flex justify-center">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-atlas-bg-tertiary text-atlas-text-muted text-xs font-medium rounded-full border border-atlas-border">
+                                    <iconify-icon icon="lucide:file-text" class="text-sm"></iconify-icon>
+                                    Not Charted
+                                </span>
+                            </div>
+                            <div class="col-span-1 flex justify-center">
+                                <iconify-icon icon="lucide:lock" class="text-atlas-text-muted text-xl"></iconify-icon>
+                            </div>
+                            <div class="col-span-1 text-right text-atlas-text-muted text-sm">—</div>
+                        </div>
+
+                        <!-- Waypoint 9-12 Skeleton Loading (showing pattern for empty states) -->
+                        <div class="grid grid-cols-12 gap-4 px-6 py-4 items-center">
+                            <div class="col-span-5 flex items-center gap-4">
+                                <div class="w-10 h-10 rounded-lg skeleton"></div>
+                                <div class="flex-1 space-y-2">
+                                    <div class="h-4 w-48 skeleton rounded"></div>
+                                    <div class="h-3 w-32 skeleton rounded"></div>
+                                </div>
+                            </div>
+                            <div class="col-span-1 flex justify-center"><div class="h-4 w-12 skeleton rounded"></div></div>
+                            <div class="col-span-2 flex justify-center"><div class="h-6 w-20 skeleton rounded-full"></div></div>
+                            <div class="col-span-2 flex justify-center"><div class="h-6 w-20 skeleton rounded-full"></div></div>
+                            <div class="col-span-1 flex justify-center"><div class="h-5 w-5 skeleton rounded-full"></div></div>
+                            <div class="col-span-1 flex justify-end"><div class="h-4 w-16 skeleton rounded"></div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom Info -->
+                <div class="mt-6 flex items-center justify-between text-atlas-text-muted text-sm">
+                    <p>Showing 8 of 12 waypoints</p>
+                    <div class="flex items-center gap-4">
+                        <button id="load-more-btn" class="flex items-center gap-2 hover:text-white transition-colors">
+                            <iconify-icon icon="lucide:chevron-down" class="text-lg"></iconify-icon>
+                            Load remaining 4 waypoints
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

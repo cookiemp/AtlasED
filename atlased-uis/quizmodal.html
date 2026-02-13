@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AtlasED - Comprehension Quiz</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link rel="preconnect" href="https://api.fontshare.com">
+    <link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@400,500,700,800&f[]=satoshi@400,500,600,700&f[]=jetbrains-mono@400,500&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'atlas-bg': {
+                            primary: '#0f0f0f',
+                            secondary: '#1a1a1a',
+                            tertiary: '#242424'
+                        },
+                        'atlas-gold': {
+                            DEFAULT: '#d4a953',
+                            hover: '#e5bd6b',
+                            muted: '#a08040'
+                        },
+                        'atlas-text': {
+                            primary: '#ffffff',
+                            secondary: '#a3a3a3',
+                            muted: '#737373'
+                        },
+                        'atlas-border': '#2a2a2a',
+                        'atlas-error': '#ef4444',
+                        'atlas-success': '#4ade80'
+                    },
+                    fontFamily: {
+                        'display': ['Cabinet Grotesk', 'sans-serif'],
+                        'body': ['Satoshi', 'sans-serif'],
+                        'mono': ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background: #0f0f0f;
+        }
+        .quiz-option {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .quiz-option:hover:not(.selected):not(.disabled) {
+            background: #1f1f1f;
+            border-color: #3a3a3a;
+        }
+        .quiz-option.selected {
+            background: rgba(212, 169, 83, 0.1);
+            border-color: #d4a953;
+        }
+        .quiz-option.correct {
+            background: rgba(74, 222, 128, 0.1);
+            border-color: #4ade80;
+        }
+        .quiz-option.incorrect {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: #ef4444;
+        }
+        .explanation-panel {
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .explanation-panel.visible {
+            max-height: 300px;
+            opacity: 1;
+        }
+        .progress-fill {
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .question-animate {
+            animation: fadeIn 0.3s ease-out;
+        }
+        .radio-circle {
+            transition: all 0.2s ease;
+        }
+        .quiz-option.selected .radio-circle {
+            border-color: #d4a953;
+            background: #d4a953;
+        }
+        .quiz-option.selected .radio-circle::after {
+            content: '';
+            width: 6px;
+            height: 6px;
+            background: #0f0f0f;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+    </style>
+</head>
+<body>
+    <div class="min-h-screen bg-atlas-bg-primary flex items-center justify-center p-6">
+        <!-- Modal Overlay -->
+        <div id="quiz-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <!-- Modal Container -->
+            <div class="w-full max-w-2xl bg-atlas-bg-secondary rounded-2xl border border-atlas-border shadow-2xl overflow-hidden">
+                
+                <!-- Header -->
+                <div class="px-8 pt-8 pb-6 border-b border-atlas-border">
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-atlas-gold/10 flex items-center justify-center">
+                                <iconify-icon icon="lucide:brain-circuit" class="text-xl text-atlas-gold"></iconify-icon>
+                            </div>
+                            <div>
+                                <h2 class="font-display font-bold text-xl text-atlas-text-primary">Comprehension Quiz</h2>
+                                <p class="font-body text-sm text-atlas-text-muted">Test your understanding</p>
+                            </div>
+                        </div>
+                        <button id="close-btn" class="w-8 h-8 rounded-lg hover:bg-atlas-bg-tertiary flex items-center justify-center transition-colors">
+                            <iconify-icon icon="lucide:x" class="text-lg text-atlas-text-secondary"></iconify-icon>
+                        </button>
+                    </div>
+                    
+                    <!-- Progress Bar -->
+                    <div class="mb-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <span id="question-counter" class="font-display font-medium text-sm text-atlas-gold">Question 2/5</span>
+                            <span id="progress-text" class="font-body text-sm text-atlas-text-muted">40% complete</span>
+                        </div>
+                        <div class="h-1.5 bg-atlas-bg-tertiary rounded-full overflow-hidden">
+                            <div id="progress-fill" class="progress-fill h-full bg-atlas-gold rounded-full" style="width: 40%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quiz Content -->
+                <div id="quiz-content" class="px-8 py-6 question-animate">
+                    <!-- Question Text -->
+                    <h3 id="question-text" class="font-display font-semibold text-lg text-atlas-text-primary leading-relaxed mb-6">
+                        Which Python data structure is best suited for storing unique elements and provides O(1) lookup time?
+                    </h3>
+
+                    <!-- Code Context (Optional) -->
+                    <div id="code-context" class="mb-6 bg-atlas-bg-primary rounded-xl p-4 border border-atlas-border">
+                        <div class="flex items-center gap-2 mb-3">
+                            <iconify-icon icon="lucide:code-2" class="text-sm text-atlas-text-muted"></iconify-icon>
+                            <span class="font-mono text-xs text-atlas-text-muted uppercase tracking-wider">Context</span>
+                        </div>
+                        <pre class="font-mono text-sm text-atlas-text-secondary overflow-x-auto"><code># You need to store student IDs and check existence quickly
+student_ids = <span class="text-atlas-gold">?</span>
+
+# Check if student exists
+if student_id in student_ids:
+    print("Student found")</code></pre>
+                    </div>
+
+                    <!-- Options -->
+                    <div id="options-container" class="space-y-3 mb-6">
+                        <!-- Option A -->
+                        <button class="quiz-option w-full text-left p-4 rounded-xl border border-atlas-border bg-atlas-bg-primary flex items-center gap-4 disabled:cursor-not-allowed" data-option="A">
+                            <div class="radio-circle relative w-5 h-5 rounded-full border-2 border-atlas-text-muted flex-shrink-0"></div>
+                            <div class="flex-1">
+                                <span class="font-mono text-sm text-atlas-gold font-medium mr-2">A.</span>
+                                <span class="font-body text-atlas-text-primary">List</span>
+                            </div>
+                            <iconify-icon icon="lucide:check" class="option-check hidden text-atlas-success text-lg"></iconify-icon>
+                            <iconify-icon icon="lucide:x" class="option-x hidden text-atlas-error text-lg"></iconify-icon>
+                        </button>
+
+                        <!-- Option B -->
+                        <button class="quiz-option w-full text-left p-4 rounded-xl border border-atlas-border bg-atlas-bg-primary flex items-center gap-4 disabled:cursor-not-allowed" data-option="B">
+                            <div class="radio-circle relative w-5 h-5 rounded-full border-2 border-atlas-text-muted flex-shrink-0"></div>
+                            <div class="flex-1">
+                                <span class="font-mono text-sm text-atlas-gold font-medium mr-2">B.</span>
+                                <span class="font-body text-atlas-text-primary">Dictionary</span>
+                            </div>
+                            <iconify-icon icon="lucide:check" class="option-check hidden text-atlas-success text-lg"></iconify-icon>
+                            <iconify-icon icon="lucide:x" class="option-x hidden text-atlas-error text-lg"></iconify-icon>
+                        </button>
+
+                        <!-- Option C -->
+                        <button class="quiz-option w-full text-left p-4 rounded-xl border border-atlas-border bg-atlas-bg-primary flex items-center gap-4 disabled:cursor-not-allowed" data-option="C">
+                            <div class="radio-circle relative w-5 h-5 rounded-full border-2 border-atlas-text-muted flex-shrink-0"></div>
+                            <div class="flex-1">
+                                <span class="font-mono text-sm text-atlas-gold font-medium mr-2">C.</span>
+                                <span class="font-body text-atlas-text-primary">Set</span>
+                            </div>
+                            <iconify-icon icon="lucide:check" class="option-check hidden text-atlas-success text-lg"></iconify-icon>
+                            <iconify-icon icon="lucide:x" class="option-x hidden text-atlas-error text-lg"></iconify-icon>
+                        </button>
+
+                        <!-- Option D -->
+                        <button class="quiz-option w-full text-left p-4 rounded-xl border border-atlas-border bg-atlas-bg-primary flex items-center gap-4 disabled:cursor-not-allowed" data-option="D">
+                            <div class="radio-circle relative w-5 h-5 rounded-full border-2 border-atlas-text-muted flex-shrink-0"></div>
+                            <div class="flex-1">
+                                <span class="font-mono text-sm text-atlas-gold font-medium mr-2">D.</span>
+                                <span class="font-body text-atlas-text-primary">Tuple</span>
+                            </div>
+                            <iconify-icon icon="lucide:check" class="option-check hidden text-atlas-success text-lg"></iconify-icon>
+                            <iconify-icon icon="lucide:x" class="option-x hidden text-atlas-error text-lg"></iconify-icon>
+                        </button>
+                    </div>
+
+                    <!-- Explanation Panel -->
+                    <div id="explanation-panel" class="explanation-panel mb-6">
+                        <div class="bg-atlas-bg-primary rounded-xl p-5 border border-atlas-border">
+                            <div class="flex items-start gap-3">
+                                <div id="explanation-icon" class="w-8 h-8 rounded-lg bg-atlas-success/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                    <iconify-icon icon="lucide:check-circle-2" class="text-atlas-success"></iconify-icon>
+                                </div>
+                                <div>
+                                    <h4 id="explanation-title" class="font-display font-semibold text-atlas-text-primary mb-2">Correct!</h4>
+                                    <p id="explanation-text" class="font-body text-sm text-atlas-text-secondary leading-relaxed">
+                                        A <strong class="text-atlas-text-primary">Set</strong> is the correct choice because it stores only unique elements and provides O(1) average time complexity for lookup operations. Lists and tuples have O(n) lookup time, while dictionaries are designed for key-value pairs rather than just storing unique values.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="px-8 pb-8 pt-2 flex items-center justify-between">
+                    <button id="skip-btn" class="font-body text-sm text-atlas-text-muted hover:text-atlas-text-secondary transition-colors flex items-center gap-2">
+                        <iconify-icon icon="lucide:skip-forward"></iconify-icon>
+                        Skip Question
+                    </button>
+                    
+                    <div class="flex items-center gap-3">
+                        <button id="submit-btn" disabled class="px-6 py-2.5 bg-atlas-gold hover:bg-atlas-gold-hover disabled:bg-atlas-bg-tertiary disabled:text-atlas-text-muted text-atlas-bg-primary font-display font-semibold text-sm rounded-xl transition-all disabled:cursor-not-allowed flex items-center gap-2">
+                            <span>Submit Answer</span>
+                            <iconify-icon icon="lucide:check-circle" class="text-base"></iconify-icon>
+                        </button>
+                        <button id="next-btn" class="hidden px-6 py-2.5 bg-atlas-gold hover:bg-atlas-gold-hover text-atlas-bg-primary font-display font-semibold text-sm rounded-xl transition-all flex items-center gap-2">
+                            <span>Next Question</span>
+                            <iconify-icon icon="lucide:arrow-right" class="text-base"></iconify-icon>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Quiz State
+        let currentQuestion = 2;
+        const totalQuestions = 5;
+        let selectedOption = null;
+        let answered = false;
+
+        // DOM Elements
+        const questionCounter = document.getElementById('question-counter');
+        const progressText = document.getElementById('progress-text');
+        const progressFill = document.getElementById('progress-fill');
+        const options = document.querySelectorAll('.quiz-option');
+        const submitBtn = document.getElementById('submit-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const skipBtn = document.getElementById('skip-btn');
+        const explanationPanel = document.getElementById('explanation-panel');
+        const explanationTitle = document.getElementById('explanation-title');
+        const explanationText = document.getElementById('explanation-text');
+        const explanationIcon = document.getElementById('explanation-icon');
+        const quizContent = document.getElementById('quiz-content');
+        const closeBtn = document.getElementById('close-btn');
+
+        // Option Selection
+        options.forEach(option => {
+            option.addEventListener('click', () => {
+                if (answered) return;
+                
+                // Remove previous selection
+                options.forEach(opt => opt.classList.remove('selected'));
+                
+                // Add selection to clicked option
+                option.classList.add('selected');
+                selectedOption = option.dataset.option;
+                
+                // Enable submit button
+                submitBtn.disabled = false;
+            });
+        });
+
+        // Submit Answer
+        submitBtn.addEventListener('click', () => {
+            if (!selectedOption || answered) return;
+            
+            answered = true;
+            const correctOption = 'C'; // Correct answer is C (Set)
+            const isCorrect = selectedOption === correctOption;
+            
+            // Disable all options
+            options.forEach(opt => {
+                opt.classList.add('disabled');
+                opt.disabled = true;
+            });
+            
+            // Show correct/incorrect styling
+            options.forEach(opt => {
+                const optionLetter = opt.dataset.option;
+                const checkIcon = opt.querySelector('.option-check');
+                const xIcon = opt.querySelector('.option-x');
+                
+                if (optionLetter === correctOption) {
+                    opt.classList.add('correct');
+                    checkIcon.classList.remove('hidden');
+                } else if (optionLetter === selectedOption && !isCorrect) {
+                    opt.classList.add('incorrect');
+                    xIcon.classList.remove('hidden');
+                }
+            });
+            
+            // Show explanation
+            explanationPanel.classList.add('visible');
+            
+            if (isCorrect) {
+                explanationTitle.textContent = 'Correct!';
+                explanationTitle.className = 'font-display font-semibold text-atlas-success mb-2';
+                explanationIcon.className = 'w-8 h-8 rounded-lg bg-atlas-success/10 flex items-center justify-center flex-shrink-0 mt-0.5';
+                explanationIcon.innerHTML = '<iconify-icon icon="lucide:check-circle-2" class="text-atlas-success"></iconify-icon>';
+            } else {
+                explanationTitle.textContent = 'Not quite right';
+                explanationTitle.className = 'font-display font-semibold text-atlas-error mb-2';
+                explanationIcon.className = 'w-8 h-8 rounded-lg bg-atlas-error/10 flex items-center justify-center flex-shrink-0 mt-0.5';
+                explanationIcon.innerHTML = '<iconify-icon icon="lucide:x-circle" class="text-atlas-error"></iconify-icon>';
+            }
+            
+            // Swap buttons
+            submitBtn.classList.add('hidden');
+            nextBtn.classList.remove('hidden');
+        });
+
+        // Next Question (Demo)
+        nextBtn.addEventListener('click', () => {
+            // Animate out
+            quizContent.style.opacity = '0';
+            quizContent.style.transform = 'translateY(-8px)';
+            
+            setTimeout(() => {
+                // Update progress
+                currentQuestion = Math.min(currentQuestion + 1, totalQuestions);
+                const progress = (currentQuestion / totalQuestions) * 100;
+                
+                questionCounter.textContent = `Question ${currentQuestion}/${totalQuestions}`;
+                progressText.textContent = `${Math.round(progress)}% complete`;
+                progressFill.style.width = `${progress}%`;
+                
+                // Reset state
+                selectedOption = null;
+                answered = false;
+                
+                // Reset options
+                options.forEach(opt => {
+                    opt.classList.remove('selected', 'correct', 'incorrect', 'disabled');
+                    opt.disabled = false;
+                    opt.querySelector('.option-check').classList.add('hidden');
+                    opt.querySelector('.option-x').classList.add('hidden');
+                });
+                
+                // Hide explanation
+                explanationPanel.classList.remove('visible');
+                
+                // Reset buttons
+                submitBtn.disabled = true;
+                submitBtn.classList.remove('hidden');
+                nextBtn.classList.add('hidden');
+                
+                // Change question text (demo)
+                document.getElementById('question-text').textContent = 
+                    currentQuestion === 3 
+                        ? "What is the time complexity of accessing an element by index in a Python list?"
+                        : "Which method is used to add an element to the end of a list in Python?";
+                
+                // Animate in
+                quizContent.style.opacity = '1';
+                quizContent.style.transform = 'translateY(0)';
+            }, 200);
+        });
+
+        // Skip Question
+        skipBtn.addEventListener('click', () => {
+            if (answered) return;
+            
+            // Just move to next question
+            nextBtn.click();
+        });
+
+        // Close modal
+        closeBtn.addEventListener('click', () => {
+            document.getElementById('quiz-modal').style.display = 'none';
+        });
+    </script>
+</body>
+</html>

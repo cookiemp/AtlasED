@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AtlasED - The Atlas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link rel="preconnect" href="https://api.fontshare.com">
+    <link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@400,500,700,800&f[]=satoshi@400,500,600,700&f[]=jetbrains-mono@400,500&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'atlas-bg': {
+                            primary: '#0f0f0f',
+                            secondary: '#1a1a1a',
+                            tertiary: '#242424'
+                        },
+                        'atlas-gold': {
+                            DEFAULT: '#d4a953',
+                            hover: '#e5bd6b',
+                            muted: '#a08040',
+                            light: '#f0d695'
+                        },
+                        'atlas-text': {
+                            primary: '#ffffff',
+                            secondary: '#a3a3a3',
+                            muted: '#737373'
+                        },
+                        'atlas-border': '#2a2a2a',
+                        'category': {
+                            fundamentals: '#60a5fa',
+                            advanced: '#d4a953',
+                            practical: '#4ade80',
+                            theory: '#f472b6'
+                        }
+                    },
+                    fontFamily: {
+                        'display': ['Cabinet Grotesk', 'sans-serif'],
+                        'body': ['Satoshi', 'sans-serif'],
+                        'mono': ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .drag-region {
+            -webkit-app-region: drag;
+            app-region: drag;
+        }
+        .no-drag {
+            -webkit-app-region: no-drag;
+            app-region: no-drag;
+        }
+        .graph-container {
+            background-image: 
+                radial-gradient(circle at 20% 50%, rgba(212, 169, 83, 0.03) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(96, 165, 250, 0.03) 0%, transparent 50%),
+                radial-gradient(circle at 40% 20%, rgba(74, 222, 128, 0.02) 0%, transparent 40%);
+        }
+        .node-circle {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .node-circle:hover {
+            filter: drop-shadow(0 0 8px currentColor);
+        }
+        .link {
+            stroke-opacity: 0.4;
+            transition: all 0.3s ease;
+        }
+        .link.highlighted {
+            stroke-opacity: 1;
+            stroke-width: 2px;
+        }
+        .link.dimmed {
+            stroke-opacity: 0.1;
+        }
+        .node-label {
+            font-family: 'Satoshi', sans-serif;
+            font-size: 12px;
+            fill: #a3a3a3;
+            pointer-events: none;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+        }
+        .node-label.highlighted {
+            fill: #ffffff;
+            font-weight: 500;
+        }
+        .node-label.dimmed {
+            opacity: 0.3;
+        }
+        .sidebar-enter {
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .glass-panel {
+            background: rgba(26, 26, 26, 0.95);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(212, 169, 83, 0.15);
+        }
+    </style>
+</head>
+<body>
+    <div class="min-h-screen bg-atlas-bg-primary flex flex-col">
+        <!-- Custom Title Bar -->
+        <header class="drag-region h-14 bg-atlas-bg-secondary border-b border-atlas-border flex items-center px-4 shrink-0">
+            <div class="flex items-center gap-3 no-drag">
+                <!-- Logo -->
+                <div class="w-8 h-8 rounded-lg bg-atlas-gold flex items-center justify-center">
+                    <iconify-icon icon="lucide:compass" class="text-atlas-bg-primary text-lg"></iconify-icon>
+                </div>
+                <!-- Divider -->
+                <div class="w-px h-5 bg-atlas-border"></div>
+                <!-- Back Button -->
+                <button id="back-btn" class="flex items-center gap-2 text-atlas-text-secondary hover:text-atlas-text-primary transition-colors duration-200">
+                    <iconify-icon icon="lucide:arrow-left" class="text-lg"></iconify-icon>
+                    <span class="font-body text-sm">Back to Expedition</span>
+                </button>
+            </div>
+            
+            <!-- Title -->
+            <div class="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
+                <iconify-icon icon="lucide:network" class="text-atlas-gold text-lg"></iconify-icon>
+                <h1 class="font-display font-bold text-atlas-text-primary text-base tracking-wide">The Atlas</h1>
+            </div>
+            
+            <!-- Right Side -->
+            <div class="ml-auto flex items-center gap-3 no-drag">
+                <button id="legend-toggle" class="w-9 h-9 rounded-lg bg-atlas-bg-tertiary border border-atlas-border hover:border-atlas-gold/50 flex items-center justify-center transition-all duration-200" title="Toggle Legend">
+                    <iconify-icon icon="lucide:info" class="text-atlas-text-secondary text-lg"></iconify-icon>
+                </button>
+                <button id="reset-view-btn" class="w-9 h-9 rounded-lg bg-atlas-bg-tertiary border border-atlas-border hover:border-atlas-gold/50 flex items-center justify-center transition-all duration-200" title="Reset View">
+                    <iconify-icon icon="lucide:maximize" class="text-atlas-text-secondary text-lg"></iconify-icon>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex overflow-hidden">
+            <!-- Graph Area -->
+            <main class="flex-1 relative graph-container">
+                <!-- Filter Controls -->
+                <div class="absolute top-4 left-4 z-10">
+                    <div class="glass-panel rounded-xl p-4 shadow-xl">
+                        <div class="flex items-center gap-2 mb-3">
+                            <iconify-icon icon="lucide:filter" class="text-atlas-gold"></iconify-icon>
+                            <span class="font-display font-semibold text-atlas-text-primary text-sm">Filters</span>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="flex items-center gap-2 cursor-pointer group">
+                                <input type="checkbox" checked class="w-4 h-4 rounded border-atlas-border bg-atlas-bg-tertiary text-atlas-gold focus:ring-atlas-gold/50" data-category="fundamentals">
+                                <span class="w-2 h-2 rounded-full bg-category-fundamentals"></span>
+                                <span class="font-body text-sm text-atlas-text-secondary group-hover:text-atlas-text-primary transition-colors">Fundamentals</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer group">
+                                <input type="checkbox" checked class="w-4 h-4 rounded border-atlas-border bg-atlas-bg-tertiary text-atlas-gold focus:ring-atlas-gold/50" data-category="advanced">
+                                <span class="w-2 h-2 rounded-full bg-category-advanced"></span>
+                                <span class="font-body text-sm text-atlas-text-secondary group-hover:text-atlas-text-primary transition-colors">Advanced</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer group">
+                                <input type="checkbox" checked class="w-4 h-4 rounded border-atlas-border bg-atlas-bg-tertiary text-atlas-gold focus:ring-atlas-gold/50" data-category="practical">
+                                <span class="w-2 h-2 rounded-full bg-category-practical"></span>
+                                <span class="font-body text-sm text-atlas-text-secondary group-hover:text-atlas-text-primary transition-colors">Practical</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer group">
+                                <input type="checkbox" checked class="w-4 h-4 rounded border-atlas-border bg-atlas-bg-tertiary text-atlas-gold focus:ring-atlas-gold/50" data-category="theory">
+                                <span class="w-2 h-2 rounded-full bg-category-theory"></span>
+                                <span class="font-body text-sm text-atlas-text-secondary group-hover:text-atlas-text-primary transition-colors">Theory</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Legend Panel (Collapsible) -->
+                <div id="legend-panel" class="absolute top-4 right-4 z-10 hidden">
+                    <div class="glass-panel rounded-xl p-4 shadow-xl w-64">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center gap-2">
+                                <iconify-icon icon="lucide:map" class="text-atlas-gold"></iconify-icon>
+                                <span class="font-display font-semibold text-atlas-text-primary text-sm">Legend</span>
+                            </div>
+                            <button id="close-legend" class="text-atlas-text-muted hover:text-atlas-text-primary transition-colors">
+                                <iconify-icon icon="lucide:x" class="text-lg"></iconify-icon>
+                            </button>
+                        </div>
+                        
+                        <div class="space-y-3">
+                            <div>
+                                <p class="font-body text-xs text-atlas-text-muted uppercase tracking-wider mb-2">Node Types</p>
+                                <div class="space-y-2">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-3 h-3 rounded-full bg-category-fundamentals border border-white/20"></div>
+                                        <span class="font-body text-xs text-atlas-text-secondary">Core Concepts</span>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-3 h-3 rounded-full bg-category-advanced border border-white/20"></div>
+                                        <span class="font-body text-xs text-atlas-text-secondary">Advanced Topics</span>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-3 h-3 rounded-full bg-category-practical border border-white/20"></div>
+                                        <span class="font-body text-xs text-atlas-text-secondary">Practical Skills</span>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-3 h-3 rounded-full bg-category-theory border border-white/20"></div>
+                                        <span class="font-body text-xs text-atlas-text-secondary">Theory & Design</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="border-t border-atlas-border pt-3">
+                                <p class="font-body text-xs text-atlas-text-muted uppercase tracking-wider mb-2">Connection Types</p>
+                                <div class="space-y-2">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-8 h-px bg-atlas-text-muted/40"></div>
+                                        <span class="font-body text-xs text-atlas-text-secondary">Prerequisite</span>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-8 h-px bg-atlas-gold/60 border-t border-dashed"></div>
+                                        <span class="font-body text-xs text-atlas-text-secondary">Related</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="border-t border-atlas-border pt-3">
+                                <p class="font-body text-xs text-atlas-text-muted uppercase tracking-wider mb-2">Interactions</p>
+                                <div class="space-y-1.5">
+                                    <p class="font-body text-xs text-atlas-text-muted">• Click node to view details</p>
+                                    <p class="font-body text-xs text-atlas-text-muted">• Hover to highlight connections</p>
+                                    <p class="font-body text-xs text-atlas-text-muted">• Drag to pan, scroll to zoom</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Zoom Controls -->
+                <div class="absolute bottom-4 left-4 z-10 flex flex-col gap-2">
+                    <button id="zoom-in" class="w-10 h-10 rounded-xl bg-atlas-bg-tertiary border border-atlas-border hover:border-atlas-gold/50 hover:bg-atlas-bg-secondary flex items-center justify-center transition-all duration-200 shadow-lg">
+                        <iconify-icon icon="lucide:plus" class="text-atlas-text-secondary text-lg"></iconify-icon>
+                    </button>
+                    <button id="zoom-out" class="w-10 h-10 rounded-xl bg-atlas-bg-tertiary border border-atlas-border hover:border-atlas-gold/50 hover:bg-atlas-bg-secondary flex items-center justify-center transition-all duration-200 shadow-lg">
+                        <iconify-icon icon="lucide:minus" class="text-atlas-text-secondary text-lg"></iconify-icon>
+                    </button>
+                    <div class="w-10 h-10 rounded-xl bg-atlas-bg-tertiary border border-atlas-border flex items-center justify-center">
+                        <span id="zoom-level" class="font-mono text-xs text-atlas-text-muted">100%</span>
+                    </div>
+                </div>
+
+                <!-- Graph Stats -->
+                <div class="absolute bottom-4 right-80 z-10">
+                    <div class="glass-panel rounded-lg px-4 py-2 flex items-center gap-4">
+                        <div class="flex items-center gap-2">
+                            <iconify-icon icon="lucide:circle-dot" class="text-atlas-gold text-sm"></iconify-icon>
+                            <span class="font-body text-xs text-atlas-text-secondary"><span id="node-count" class="text-atlas-text-primary font-medium">18</span> concepts</span>
+                        </div>
+                        <div class="w-px h-4 bg-atlas-border"></div>
+                        <div class="flex items-center gap-2">
+                            <iconify-icon icon="lucide:git-branch" class="text-atlas-text-muted text-sm"></iconify-icon>
+                            <span class="font-body text-xs text-atlas-text-secondary"><span id="link-count" class="text-atlas-text-primary font-medium">28</span> connections</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- D3 Graph Container -->
+                <div id="graph-container" class="w-full h-full"></div>
+            </main>
+
+            <!-- Sidebar - Node Details -->
+            <aside id="node-sidebar" class="w-80 bg-atlas-bg-secondary border-l border-atlas-border flex flex-col shrink-0 transform translate-x-full transition-transform duration-300">
+                <!-- Empty State -->
+                <div id="sidebar-empty" class="flex-1 flex flex-col items-center justify-center p-8 text-center">
+                    <div class="w-16 h-16 rounded-2xl bg-atlas-bg-tertiary border border-atlas-border flex items-center justify-center mb-4">
+                        <iconify-icon icon="lucide:mouse-pointer-click" class="text-atlas-gold text-2xl"></iconify-icon>
+                    </div>
+                    <h3 class="font-display font-semibold text-atlas-text-primary mb-2">Explore the Atlas</h3>
+                    <p class="font-body text-sm text-atlas-text-muted">Click on any node to view concept details, related waypoints, and references.</p>
+                </div>
+
+                <!-- Node Details (Hidden by default) -->
+                <div id="node-details" class="hidden flex-col h-full">
+                    <!-- Header -->
+                    <div class="p-6 border-b border-atlas-border">
+                        <div class="flex items-start justify-between mb-3">
+                            <span id="detail-category" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-atlas-bg-tertiary border border-atlas-border text-xs font-medium">
+                                <span id="detail-category-dot" class="w-1.5 h-1.5 rounded-full"></span>
+                                <span id="detail-category-text">Category</span>
+                            </span>
+                            <button id="close-sidebar" class="text-atlas-text-muted hover:text-atlas-text-primary transition-colors">
+                                <iconify-icon icon="lucide:x" class="text-lg"></iconify-icon>
+                            </button>
+                        </div>
+                        <h2 id="detail-title" class="font-display font-bold text-xl text-atlas-text-primary leading-tight mb-2">Node Title</h2>
+                        <p id="detail-subtitle" class="font-body text-sm text-atlas-text-muted">Found in 3 waypoints</p>
+                    </div>
+
+                    <!-- Scrollable Content -->
+                    <div class="flex-1 overflow-y-auto p-6 space-y-6">
+                        <!-- Definition -->
+                        <section>
+                            <h3 class="font-display font-semibold text-atlas-text-primary text-sm uppercase tracking-wider mb-3 flex items-center gap-2">
+                                <iconify-icon icon="lucide:book-open" class="text-atlas-gold"></iconify-icon>
+                                Definition
+                            </h3>
+                            <p id="detail-definition" class="font-body text-sm text-atlas-text-secondary leading-relaxed">
+                                Definition text goes here...
+                            </p>
+                        </section>
+
+                        <!-- Key Points -->
+                        <section>
+                            <h3 class="font-display font-semibold text-atlas-text-primary text-sm uppercase tracking-wider mb-3 flex items-center gap-2">
+                                <iconify-icon icon="lucide:key" class="text-atlas-gold"></iconify-icon>
+                                Key Points
+                            </h3>
+                            <ul id="detail-keypoints" class="space-y-2">
+                                <!-- Key points populated by JS -->
+                            </ul>
+                        </section>
+
+                        <!-- Related Waypoints -->
+                        <section>
+                            <h3 class="font-display font-semibold text-atlas-text-primary text-sm uppercase tracking-wider mb-3 flex items-center gap-2">
+                                <iconify-icon icon="lucide:map-pin" class="text-atlas-gold"></iconify-icon>
+                                Related Waypoints
+                            </h3>
+                            <div id="detail-waypoints" class="space-y-2">
+                                <!-- Waypoints populated by JS -->
+                            </div>
+                        </section>
+
+                        <!-- Connected Concepts -->
+                        <section>
+                            <h3 class="font-display font-semibold text-atlas-text-primary text-sm uppercase tracking-wider mb-3 flex items-center gap-2">
+                                <iconify-icon icon="lucide:git-branch" class="text-atlas-gold"></iconify-icon>
+                                Connected Concepts
+                            </h3>
+                            <div id="detail-connections" class="flex flex-wrap gap-2">
+                                <!-- Connections populated by JS -->
+                            </div>
+                        </section>
+
+                        <!-- References -->
+                        <section>
+                            <h3 class="font-display font-semibold text-atlas-text-primary text-sm uppercase tracking-wider mb-3 flex items-center gap-2">
+                                <iconify-icon icon="lucide:external-link" class="text-atlas-gold"></iconify-icon>
+                                References
+                            </h3>
+                            <div id="detail-references" class="space-y-2">
+                                <!-- References populated by JS -->
+                            </div>
+                        </section>
+                    </div>
+
+                    <!-- Footer Actions -->
+                    <div class="p-4 border-t border-atlas-border bg-atlas-bg-tertiary/50">
+                        <button class="w-full py-2.5 rounded-lg bg-atlas-gold hover:bg-atlas-gold-hover text-atlas-bg-primary font-body font-semibold text-sm transition-colors duration-200 flex items-center justify-center gap-2">
+                            <iconify-icon icon="lucide:book-open-check"></iconify-icon>
+                            Open Field Guide
+                        </button>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <script>
+        // Graph Data - Python Learning Expedition
+        const graphData = {
+            nodes: [
+                { id: 1, name: "Python Basics", category: "fundamentals", definition: "Core syntax and fundamental concepts of Python programming", keypoints: ["Indentation-based syntax", "Dynamic typing", "Interpreted language"], waypoints: ["Introduction to Python", "Setting up your environment"] },
+                { id: 2, name: "Variables", category: "fundamentals", definition: "Named storage locations for data values", keypoints: ["Dynamic typing", "Naming conventions", "Memory references"], waypoints: ["Python Basics", "Data Types Deep Dive"] },
+                { id: 3, name: "Data Types", category: "fundamentals", definition: "Classification of data items and the operations that can be performed on them", keypoints: ["Primitive types", "Type conversion", "Type checking"], waypoints: ["Python Basics", "Advanced Data Structures"] },
+                { id: 4, name: "Functions", category: "fundamentals", definition: "Reusable blocks of code that perform specific tasks", keypoints: ["Parameters and arguments", "Return values", "Scope"], waypoints: ["Functions and Methods", "Functional Programming"] },
+                { id: 5, name: "Control Flow", category: "fundamentals", definition: "Order in which statements are executed in a program", keypoints: ["If/else statements", "Loops", "Break and continue"], waypoints: ["Control Structures", "Algorithm Basics"] },
+                { id: 6, name: "Lists", category: "advanced", definition: "Ordered, mutable collections of items", keypoints: ["Indexing and slicing", "List methods", "Comprehensions"], waypoints: ["Data Structures", "Python Collections"] },
+                { id: 7, name: "Dictionaries", category: "advanced", definition: "Key-value pair data structures for fast lookups", keypoints: ["Hash maps", "Keys must be immutable", "Dictionary methods"], waypoints: ["Data Structures", "JSON and APIs"] },
+                { id: 8, name: "OOP", category: "advanced", definition: "Object-Oriented Programming paradigm in Python", keypoints: ["Classes and objects", "Inheritance", "Encapsulation"], waypoints: ["Object-Oriented Python", "Design Patterns"] },
+                { id: 9, name: "Classes", category: "advanced", definition: "Blueprints for creating objects with attributes and methods", keypoints: ["__init__ method", "Self parameter", "Instance vs class variables"], waypoints: ["Object-Oriented Python", "Advanced OOP"] },
+                { id: 10, name: "Inheritance", category: "advanced", definition: "Mechanism for creating new classes from existing ones", keypoints: ["Base and derived classes", "Method overriding", "super() function"], waypoints: ["Object-Oriented Python", "Polymorphism"] },
+                { id: 11, name: "File I/O", category: "practical", definition: "Reading from and writing to files", keypoints: ["Context managers", "File modes", "Error handling"], waypoints: ["Working with Files", "Data Processing"] },
+                { id: 12, name: "Exception Handling", category: "practical", definition: "Managing errors and unexpected situations gracefully", keypoints: ["Try/except blocks", "Custom exceptions", "Finally clause"], waypoints: ["Error Handling", "Robust Applications"] },
+                { id: 13, name: "Modules", category: "practical", definition: "Files containing Python code that can be imported", keypoints: ["Import statements", "__name__ == '__main__'", "Package structure"], waypoints: ["Modules and Packages", "Project Structure"] },
+                { id: 14, name: "APIs", category: "practical", definition: "Application Programming Interfaces for data exchange", keypoints: ["HTTP requests", "JSON parsing", "Authentication"], waypoints: ["Working with APIs", "Web Scraping"] },
+                { id: 15, name: "Decorators", category: "advanced", definition: "Functions that modify the behavior of other functions", keypoints: ["Higher-order functions", "@syntax", " functools.wraps"], waypoints: ["Advanced Python", "Functional Programming"] },
+                { id: 16, name: "Generators", category: "advanced", definition: "Iterators that generate values on the fly with lazy evaluation", keypoints: ["Yield keyword", "Memory efficiency", "Iterator protocol"], waypoints: ["Advanced Python", "Performance Optimization"] },
+                { id: 17, name: "Algorithms", category: "theory", definition: "Step-by-step procedures for solving problems", keypoints: ["Time complexity", "Space complexity", "Big O notation"], waypoints: ["Algorithm Basics", "Problem Solving"] },
+                { id: 18, name: "Recursion", category: "theory", definition: "Functions that call themselves to solve problems", keypoints: ["Base case", "Recursive case", "Stack frames"], waypoints: ["Algorithm Basics", "Advanced Algorithms"] }
+            ],
+            links: [
+                { source: 1, target: 2, type: "prerequisite" },
+                { source: 1, target: 3, type: "prerequisite" },
+                { source: 1, target: 5, type: "prerequisite" },
+                { source: 2, target: 3, type: "related" },
+                { source: 3, target: 6, type: "prerequisite" },
+                { source: 3, target: 7, type: "related" },
+                { source: 4, target: 15, type: "related" },
+                { source: 4, target: 16, type: "related" },
+                { source: 5, target: 17, type: "related" },
+                { source: 5, target: 18, type: "related" },
+                { source: 6, target: 7, type: "related" },
+                { source: 6, target: 11, type: "related" },
+                { source: 7, target: 14, type: "related" },
+                { source: 8, target: 9, type: "prerequisite" },
+                { source: 8, target: 10, type: "prerequisite" },
+                { source: 9, target: 10, type: "related" },
+                { source: 10, target: 15, type: "related" },
+                { source: 11, target: 12, type: "related" },
+                { source: 12, target: 14, type: "related" },
+                { source: 13, target: 14, type: "related" },
+                { source: 14, target: 16, type: "related" },
+                { source: 15, target: 16, type: "related" },
+                { source: 17, target: 18, type: "related" },
+                { source: 4, target: 5, type: "related" },
+                { source: 3, target: 9, type: "related" },
+                { source: 6, target: 16, type: "related" },
+                { source: 1, target: 4, type: "prerequisite" },
+                { source: 9, target: 12, type: "related" }
+            ]
+        };
+
+        // Category colors
+        const categoryColors = {
+            fundamentals: '#60a5fa',
+            advanced: '#d4a953',
+            practical: '#4ade80',
+            theory: '#f472b6'
+        };
+
+        const categoryLabels = {
+            fundamentals: 'Fundamentals',
+            advanced: 'Advanced',
+            practical: 'Practical',
+            theory: 'Theory'
+        };
+
+        // Initialize D3 Graph
+        let svg, simulation, g, zoom;
+        let currentTransform = d3.zoomIdentity;
+        let selectedNode = null;
+
+        function initGraph() {
+            const container = document.getElementById('graph-container');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            // Create SVG
+            svg = d3.select('#graph-container')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height)
+                .attr('viewBox', [0, 0, width, height]);
+
+            // Add zoom behavior
+            zoom = d3.zoom()
+                .scaleExtent([0.3, 3])
+                .on('zoom', (event) => {
+                    currentTransform = event.transform;
+                    g.attr('transform', event.transform);
+                    updateZoomLevel(event.transform.k);
+                });
+
+            svg.call(zoom);
+
+            // Create main group
+            g = svg.append('g');
+
+            // Create simulation
+            simulation = d3.forceSimulation(graphData.nodes)
+                .force('link', d3.forceLink(graphData.links).id(d => d.id).distance(100))
+                .force('charge', d3.forceManyBody().strength(-400))
+                .force('center', d3.forceCenter(width / 2, height / 2))
+                .force('collision', d3.forceCollide().radius(45));
+
+            // Draw links
+            const link = g.append('g')
+                .selectAll('line')
+                .data(graphData.links)
+                .join('line')
+                .attr('class', 'link')
+                .attr('stroke', d => d.type === 'prerequisite' ? '#737373' : '#d4a953')
+                .attr('stroke-width', 1.5)
+                .attr('stroke-dasharray', d => d.type === 'related' ? '5,5' : null);
+
+            // Draw nodes
+            const node = g.append('g')
+                .selectAll('g')
+                .data(graphData.nodes)
+                .join('g')
+                .attr('class', 'node')
+                .style('cursor', 'pointer')
+                .call(d3.drag()
+                    .on('start', dragstarted)
+                    .on('drag', dragged)
+                    .on('end', dragended));
+
+            // Node circles
+            node.append('circle')
+                .attr('r', 20)
+                .attr('fill', d => categoryColors[d.category])
+                .attr('stroke', '#1a1a1a')
+                .attr('stroke-width', 3)
+                .attr('class', 'node-circle');
+
+            // Node labels
+            node.append('text')
+                .attr('class', 'node-label')
+                .attr('dy', 35)
+                .attr('text-anchor', 'middle')
+                .text(d => d.name);
+
+            // Interactions
+            node.on('mouseenter', function(event, d) {
+                highlightConnections(d);
+            })
+            .on('mouseleave', function() {
+                resetHighlight();
+            })
+            .on('click', function(event, d) {
+                event.stopPropagation();
+                selectNode(d);
+            });
+
+            // Click background to deselect
+            svg.on('click', () => {
+                deselectNode();
+            });
+
+            // Simulation tick
+            simulation.on('tick', () => {
+                link
+                    .attr('x1', d => d.source.x)
+                    .attr('y1', d => d.source.y)
+                    .attr('x2', d => d.target.x)
+                    .attr('y2', d => d.target.y);
+
+                node.attr('transform', d => `translate(${d.x},${d.y})`);
+            });
+
+            // Drag functions
+            function dragstarted(event, d) {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+            }
+
+            function dragged(event, d) {
+                d.fx = event.x;
+                d.fy = event.y;
+            }
+
+            function dragended(event, d) {
+                if (!event.active) simulation.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+            }
+        }
+
+        function highlightConnections(d) {
+            const connectedIds = new Set();
+            connectedIds.add(d.id);
+            
+            graphData.links.forEach(link => {
+                if (link.source.id === d.id) connectedIds.add(link.target.id);
+                if (link.target.id === d.id) connectedIds.add(link.source.id);
+            });
+
+            g.selectAll('.link')
+                .classed('highlighted', link => 
+                    link.source.id === d.id || link.target.id === d.id)
+                .classed('dimmed', link => 
+                    link.source.id !== d.id && link.target.id !== d.id);
+
+            g.selectAll('.node')
+                .classed('dimmed', node => !connectedIds.has(node.id));
+
+            g.selectAll('.node-label')
+                .classed('highlighted', node => node.id === d.id)
+                .classed('dimmed', node => !connectedIds.has(node.id));
+        }
+
+        function resetHighlight() {
+            g.selectAll('.link')
+                .classed('highlighted', false)
+                .classed('dimmed', false);
+            
+            g.selectAll('.node')
+                .classed('dimmed', false);
+
+            g.selectAll('.node-label')
+                .classed('highlighted', false)
+                .classed('dimmed', false);
+        }
+
+        function selectNode(d) {
+            selectedNode = d;
+            showNodeDetails(d);
+            
+            // Highlight selected node
+            g.selectAll('.node circle')
+                .attr('stroke', n => n.id === d.id ? '#ffffff' : '#1a1a1a')
+                .attr('stroke-width', n => n.id === d.id ? 4 : 3);
+        }
+
+        function deselectNode() {
+            selectedNode = null;
+            hideNodeDetails();
+            
+            g.selectAll('.node circle')
+                .attr('stroke', '#1a1a1a')
+                .attr('stroke-width', 3);
+        }
+
+        function showNodeDetails(d) {
+            const sidebar = document.getElementById('node-sidebar');
+            const empty = document.getElementById('sidebar-empty');
+            const details = document.getElementById('node-details');
+
+            // Update content
+            document.getElementById('detail-title').textContent = d.name;
+            document.getElementById('detail-category-text').textContent = categoryLabels[d.category];
+            document.getElementById('detail-category-dot').style.backgroundColor = categoryColors[d.category];
+            document.getElementById('detail-definition').textContent = d.definition;
+            document.getElementById('detail-subtitle').textContent = `Found in ${d.waypoints.length} waypoint${d.waypoints.length > 1 ? 's' : ''}`;
+
+            // Key points
+            const keypointsList = document.getElementById('detail-keypoints');
+            keypointsList.innerHTML = d.keypoints.map(point => `
+                <li class="flex items-start gap-2">
+                    <iconify-icon icon="lucide:check-circle-2" class="text-atlas-gold shrink-0 mt-0.5 text-sm"></iconify-icon>
+                    <span class="font-body text-sm text-atlas-text-secondary">${point}</span>
+                </li>
+            `).join('');
+
+            // Waypoints
+            const waypointsList = document.getElementById('detail-waypoints');
+            waypointsList.innerHTML = d.waypoints.map((wp, i) => `
+                <div class="flex items-center gap-3 p-3 rounded-lg bg-atlas-bg-tertiary border border-atlas-border hover:border-atlas-gold/30 transition-colors cursor-pointer group">
+                    <div class="w-8 h-8 rounded-lg bg-atlas-bg-primary flex items-center justify-center shrink-0">
+                        <span class="font-mono text-xs text-atlas-gold">${String(i + 1).padStart(2, '0')}</span>
+                    </div>
+                    <span class="font-body text-sm text-atlas-text-secondary group-hover:text-atlas-text-primary transition-colors">${wp}</span>
+                    <iconify-icon icon="lucide:chevron-right" class="ml-auto text-atlas-text-muted group-hover:text-atlas-gold transition-colors"></iconify-icon>
+                </div>
+            `).join('');
+
+            // Connections
+            const connected = graphData.links
+                .filter(l => l.source.id === d.id || l.target.id === d.id)
+                .map(l => l.source.id === d.id ? l.target : l.source);
+            
+            const connectionsDiv = document.getElementById('detail-connections');
+            connectionsDiv.innerHTML = connected.map(c => `
+                <button class="px-3 py-1.5 rounded-full bg-atlas-bg-tertiary border border-atlas-border hover:border-atlas-gold/50 font-body text-xs text-atlas-text-secondary hover:text-atlas-text-primary transition-all" onclick="selectNodeById(${c.id})">
+                    ${c.name}
+                </button>
+            `).join('');
+
+            // References
+            const referencesList = document.getElementById('detail-references');
+            referencesList.innerHTML = [
+                { title: 'Python Documentation', url: 'docs.python.org' },
+                { title: 'MDN Web Docs', url: 'developer.mozilla.org' }
+            ].map(ref => `
+                <a href="https://${ref.url}" target="_blank" class="flex items-center gap-2 p-2 rounded-lg hover:bg-atlas-bg-tertiary transition-colors group">
+                    <iconify-icon icon="lucide:external-link" class="text-atlas-text-muted group-hover:text-atlas-gold transition-colors text-sm"></iconify-icon>
+                    <span class="font-body text-sm text-atlas-text-secondary group-hover:text-atlas-text-primary transition-colors">${ref.title}</span>
+                </a>
+            `).join('');
+
+            // Show sidebar
+            empty.classList.add('hidden');
+            details.classList.remove('hidden');
+            details.classList.add('flex');
+            sidebar.classList.remove('translate-x-full');
+        }
+
+        function hideNodeDetails() {
+            const sidebar = document.getElementById('node-sidebar');
+            const empty = document.getElementById('sidebar-empty');
+            const details = document.getElementById('node-details');
+
+            sidebar.classList.add('translate-x-full');
+            
+            setTimeout(() => {
+                empty.classList.remove('hidden');
+                details.classList.add('hidden');
+                details.classList.remove('flex');
+            }, 300);
+        }
+
+        function selectNodeById(id) {
+            const node = graphData.nodes.find(n => n.id === id);
+            if (node) selectNode(node);
+        }
+
+        function updateZoomLevel(scale) {
+            document.getElementById('zoom-level').textContent = Math.round(scale * 100) + '%';
+        }
+
+        // Controls
+        document.getElementById('zoom-in').addEventListener('click', () => {
+            svg.transition().duration(300).call(zoom.scaleBy, 1.3);
+        });
+
+        document.getElementById('zoom-out').addEventListener('click', () => {
+            svg.transition().duration(300).call(zoom.scaleBy, 0.7);
+        });
+
+        document.getElementById('reset-view-btn').addEventListener('click', () => {
+            svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity);
+        });
+
+        // Legend toggle
+        document.getElementById('legend-toggle').addEventListener('click', () => {
+            document.getElementById('legend-panel').classList.toggle('hidden');
+        });
+
+        document.getElementById('close-legend').addEventListener('click', () => {
+            document.getElementById('legend-panel').classList.add('hidden');
+        });
+
+        // Close sidebar
+        document.getElementById('close-sidebar').addEventListener('click', deselectNode);
+
+        // Filter controls
+        document.querySelectorAll('input[data-category]').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const category = this.dataset.category;
+                const visible = this.checked;
+                
+                g.selectAll('.node')
+                    .filter(d => d.category === category)
+                    .style('opacity', visible ? 1 : 0.1)
+                    .style('pointer-events', visible ? 'all' : 'none');
+
+                g.selectAll('.link')
+                    .style('opacity', l => {
+                        const sourceVisible = document.querySelector(`input[data-category="${l.source.category}"]`).checked;
+                        const targetVisible = document.querySelector(`input[data-category="${l.target.category}"]`).checked;
+                        return sourceVisible && targetVisible ? 1 : 0.1;
+                    });
+            });
+        });
+
+        // Initialize
+        window.addEventListener('load', initGraph);
+        window.addEventListener('resize', () => {
+            const container = document.getElementById('graph-container');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            svg.attr('width', width).attr('height', height).attr('viewBox', [0, 0, width, height]);
+            simulation.force('center', d3.forceCenter(width / 2, height / 2));
+            simulation.alpha(0.3).restart();
+        });
+    </script>
+</body>
+</html>

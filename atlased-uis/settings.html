@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AtlasED - Settings</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link rel="preconnect" href="https://api.fontshare.com">
+    <link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@400,500,700,800&f[]=satoshi@400,500,600,700&f[]=jetbrains-mono@400,500&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'atlas-bg': {
+                            primary: '#0f0f0f',
+                            secondary: '#1a1a1a',
+                            tertiary: '#242424'
+                        },
+                        'atlas-gold': {
+                            DEFAULT: '#d4a953',
+                            hover: '#e0b86a',
+                            muted: '#a08040'
+                        },
+                        'atlas-text': {
+                            primary: '#ffffff',
+                            secondary: '#a3a3a3',
+                            muted: '#737373'
+                        },
+                        'atlas-border': '#2a2a2a',
+                        'atlas-error': '#dc4446',
+                        'atlas-success': '#4ade80'
+                    },
+                    fontFamily: {
+                        'display': ['Cabinet Grotesk', 'sans-serif'],
+                        'body': ['Satoshi', 'sans-serif'],
+                        'mono': ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .drag-region {
+            -webkit-app-region: drag;
+            app-region: drag;
+        }
+        .no-drag {
+            -webkit-app-region: no-drag;
+            app-region: no-drag;
+        }
+        .input-glow:focus {
+            box-shadow: 0 0 0 2px rgba(212, 169, 83, 0.2);
+        }
+        /* Custom Toggle Switch */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #d4a953;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #d4a953;
+        }
+        /* Custom Radio Button */
+        .custom-radio:checked + div {
+            border-color: #d4a953;
+            background-color: rgba(212, 169, 83, 0.1);
+        }
+        .custom-radio:checked + div .radio-dot {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="min-h-screen bg-atlas-bg-primary font-body text-atlas-text-primary">
+        <!-- Custom Draggable Title Bar -->
+        <header class="drag-region h-14 bg-atlas-bg-secondary border-b border-atlas-border flex items-center justify-between px-6 select-none">
+            <div class="flex items-center gap-4">
+                <button id="nav-back-btn" class="no-drag flex items-center justify-center w-9 h-9 rounded-lg bg-atlas-bg-tertiary text-atlas-text-secondary hover:text-atlas-text-primary hover:bg-atlas-gold/10 transition-all duration-200">
+                    <iconify-icon icon="lucide:arrow-left" class="w-5 h-5"></iconify-icon>
+                </button>
+                <div class="flex items-center gap-3">
+                    <div class="w-7 h-7 rounded-lg bg-atlas-gold flex items-center justify-center">
+                        <iconify-icon icon="lucide:compass" class="w-4 h-4 text-atlas-bg-primary"></iconify-icon>
+                    </div>
+                    <span class="font-display font-bold text-lg tracking-tight">AtlasED</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <button id="nav-settings-btn" class="no-drag flex items-center justify-center w-9 h-9 rounded-lg bg-atlas-gold/10 text-atlas-gold">
+                    <iconify-icon icon="lucide:settings" class="w-5 h-5"></iconify-icon>
+                </button>
+                <div class="no-drag flex items-center gap-2 ml-2">
+                    <button class="w-3 h-3 rounded-full bg-atlas-text-muted hover:bg-atlas-gold transition-colors"></button>
+                    <button class="w-3 h-3 rounded-full bg-atlas-text-muted hover:bg-atlas-gold transition-colors"></button>
+                    <button class="w-3 h-3 rounded-full bg-atlas-text-muted hover:bg-atlas-error transition-colors"></button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="max-w-4xl mx-auto px-8 py-10">
+            <!-- Page Header -->
+            <div class="mb-10">
+                <h1 class="font-display font-bold text-3xl tracking-tight mb-2">Settings</h1>
+                <p class="text-atlas-text-secondary text-base">Configure your AtlasED experience and learning preferences</p>
+            </div>
+
+            <form class="space-y-6" onsubmit="event.preventDefault();">
+                <!-- API Configuration Section -->
+                <section class="bg-atlas-bg-secondary rounded-xl border border-atlas-border overflow-hidden">
+                    <div class="px-6 py-5 border-b border-atlas-border">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-atlas-gold/10 flex items-center justify-center">
+                                <iconify-icon icon="lucide:key" class="w-5 h-5 text-atlas-gold"></iconify-icon>
+                            </div>
+                            <div>
+                                <h2 class="font-display font-bold text-lg">API Configuration</h2>
+                                <p class="text-atlas-text-muted text-sm">Connect to Gemini AI for enhanced learning features</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-6 space-y-5">
+                        <div>
+                            <label class="block text-atlas-text-secondary text-sm uppercase tracking-wide font-medium mb-3">Gemini API Key</label>
+                            <div class="relative">
+                                <input 
+                                    type="password" 
+                                    id="api-key-input"
+                                    placeholder="Enter your Gemini API key"
+                                    class="w-full bg-atlas-bg-tertiary border border-atlas-border rounded-xl px-4 py-3.5 pr-24 text-atlas-text-primary placeholder-atlas-text-muted focus:outline-none focus:border-atlas-gold/50 input-glow transition-all duration-200 font-mono text-sm"
+                                />
+                                <button 
+                                    type="button"
+                                    id="toggle-visibility-btn"
+                                    class="absolute right-14 top-1/2 -translate-y-1/2 p-2 text-atlas-text-muted hover:text-atlas-text-primary transition-colors"
+                                >
+                                    <iconify-icon icon="lucide:eye" class="w-4 h-4" id="eye-icon"></iconify-icon>
+                                </button>
+                                <button 
+                                    type="button"
+                                    id="validate-api-btn"
+                                    class="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-atlas-bg-secondary border border-atlas-border rounded-lg text-xs font-medium text-atlas-text-secondary hover:text-atlas-gold hover:border-atlas-gold/50 transition-all duration-200"
+                                >
+                                    Validate
+                                </button>
+                            </div>
+                            <p class="text-atlas-text-muted text-xs mt-2">Your API key is stored locally and never shared. <a href="#" class="text-atlas-gold hover:underline">Learn more</a></p>
+                            
+                            <!-- Validation States -->
+                            <div id="validation-success" class="hidden mt-3 flex items-center gap-2 text-atlas-success text-sm">
+                                <iconify-icon icon="lucide:check-circle" class="w-4 h-4"></iconify-icon>
+                                <span>API key validated successfully</span>
+                            </div>
+                            <div id="validation-error" class="hidden mt-3 flex items-center gap-2 text-atlas-error text-sm">
+                                <iconify-icon icon="lucide:alert-circle" class="w-4 h-4"></iconify-icon>
+                                <span>Invalid API key. Please check and try again.</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Preferences Section -->
+                <section class="bg-atlas-bg-secondary rounded-xl border border-atlas-border overflow-hidden">
+                    <div class="px-6 py-5 border-b border-atlas-border">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-atlas-gold/10 flex items-center justify-center">
+                                <iconify-icon icon="lucide:sliders-horizontal" class="w-5 h-5 text-atlas-gold"></iconify-icon>
+                            </div>
+                            <div>
+                                <h2 class="font-display font-bold text-lg">Learning Preferences</h2>
+                                <p class="text-atlas-text-muted text-sm">Customize how AtlasED enhances your learning</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <!-- Toggle Items -->
+                        <div class="flex items-center justify-between py-2">
+                            <div>
+                                <h3 class="font-medium text-atlas-text-primary">Auto-generate Field Guides</h3>
+                                <p class="text-atlas-text-muted text-sm mt-0.5">Automatically create comprehensive notes from video content</p>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer no-drag">
+                                <input type="checkbox" class="sr-only peer toggle-checkbox" checked>
+                                <div class="w-11 h-6 bg-atlas-bg-tertiary border border-atlas-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-atlas-text-secondary after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-atlas-gold peer-checked:border-atlas-gold peer-checked:after:bg-white"></div>
+                            </label>
+                        </div>
+
+                        <div class="h-px bg-atlas-border"></div>
+
+                        <div class="flex items-center justify-between py-2">
+                            <div>
+                                <h3 class="font-medium text-atlas-text-primary">Show Comprehension Quizzes</h3>
+                                <p class="text-atlas-text-muted text-sm mt-0.5">Pause videos to test understanding at key moments</p>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer no-drag">
+                                <input type="checkbox" class="sr-only peer toggle-checkbox" checked>
+                                <div class="w-11 h-6 bg-atlas-bg-tertiary border border-atlas-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-atlas-text-secondary after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-atlas-gold peer-checked:border-atlas-gold peer-checked:after:bg-white"></div>
+                            </label>
+                        </div>
+
+                        <div class="h-px bg-atlas-border"></div>
+
+                        <div class="flex items-center justify-between py-2">
+                            <div>
+                                <h3 class="font-medium text-atlas-text-primary">Enable Spaced Repetition</h3>
+                                <p class="text-atlas-text-muted text-sm mt-0.5">Schedule Memory Checkpoints for optimal retention</p>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer no-drag">
+                                <input type="checkbox" class="sr-only peer toggle-checkbox" checked>
+                                <div class="w-11 h-6 bg-atlas-bg-tertiary border border-atlas-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-atlas-text-secondary after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-atlas-gold peer-checked:border-atlas-gold peer-checked:after:bg-white"></div>
+                            </label>
+                        </div>
+
+                        <div class="h-px bg-atlas-border"></div>
+
+                        <div class="flex items-center justify-between py-2">
+                            <div>
+                                <h3 class="font-medium text-atlas-text-primary">Dark Mode</h3>
+                                <p class="text-atlas-text-muted text-sm mt-0.5">Use dark theme throughout the application</p>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer no-drag">
+                                <input type="checkbox" class="sr-only peer toggle-checkbox" checked>
+                                <div class="w-11 h-6 bg-atlas-bg-tertiary border border-atlas-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-atlas-text-secondary after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-atlas-gold peer-checked:border-atlas-gold peer-checked:after:bg-white"></div>
+                            </label>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Playback Speed Section -->
+                <section class="bg-atlas-bg-secondary rounded-xl border border-atlas-border overflow-hidden">
+                    <div class="px-6 py-5 border-b border-atlas-border">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-atlas-gold/10 flex items-center justify-center">
+                                <iconify-icon icon="lucide:play" class="w-5 h-5 text-atlas-gold"></iconify-icon>
+                            </div>
+                            <div>
+                                <h2 class="font-display font-bold text-lg">Default Playback Speed</h2>
+                                <p class="text-atlas-text-muted text-sm">Set your preferred video playback speed</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-6">
+                        <div class="grid grid-cols-4 gap-3">
+                            <label class="cursor-pointer">
+                                <input type="radio" name="playback-speed" value="0.75" class="sr-only custom-radio">
+                                <div class="flex flex-col items-center justify-center py-4 px-4 bg-atlas-bg-tertiary border border-atlas-border rounded-xl transition-all duration-200 hover:border-atlas-text-muted">
+                                    <span class="font-display font-bold text-lg">0.75x</span>
+                                    <div class="radio-dot w-2 h-2 rounded-full bg-atlas-gold mt-2 opacity-0 transition-opacity duration-200"></div>
+                                </div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="radio" name="playback-speed" value="1" class="sr-only custom-radio" checked>
+                                <div class="flex flex-col items-center justify-center py-4 px-4 bg-atlas-bg-tertiary border border-atlas-border rounded-xl transition-all duration-200 hover:border-atlas-text-muted">
+                                    <span class="font-display font-bold text-lg">1x</span>
+                                    <div class="radio-dot w-2 h-2 rounded-full bg-atlas-gold mt-2 opacity-0 transition-opacity duration-200"></div>
+                                </div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="radio" name="playback-speed" value="1.25" class="sr-only custom-radio">
+                                <div class="flex flex-col items-center justify-center py-4 px-4 bg-atlas-bg-tertiary border border-atlas-border rounded-xl transition-all duration-200 hover:border-atlas-text-muted">
+                                    <span class="font-display font-bold text-lg">1.25x</span>
+                                    <div class="radio-dot w-2 h-2 rounded-full bg-atlas-gold mt-2 opacity-0 transition-opacity duration-200"></div>
+                                </div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="radio" name="playback-speed" value="1.5" class="sr-only custom-radio">
+                                <div class="flex flex-col items-center justify-center py-4 px-4 bg-atlas-bg-tertiary border border-atlas-border rounded-xl transition-all duration-200 hover:border-atlas-text-muted">
+                                    <span class="font-display font-bold text-lg">1.5x</span>
+                                    <div class="radio-dot w-2 h-2 rounded-full bg-atlas-gold mt-2 opacity-0 transition-opacity duration-200"></div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Data & Privacy Section -->
+                <section class="bg-atlas-bg-secondary rounded-xl border border-atlas-border overflow-hidden">
+                    <div class="px-6 py-5 border-b border-atlas-border">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-atlas-gold/10 flex items-center justify-center">
+                                <iconify-icon icon="lucide:shield" class="w-5 h-5 text-atlas-gold"></iconify-icon>
+                            </div>
+                            <div>
+                                <h2 class="font-display font-bold text-lg">Data & Privacy</h2>
+                                <p class="text-atlas-text-muted text-sm">Manage your learning data and privacy settings</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <button class="w-full flex items-center justify-between p-4 bg-atlas-bg-tertiary border border-atlas-border rounded-xl hover:border-atlas-gold/50 hover:bg-atlas-bg-tertiary/80 transition-all duration-200 group">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-lg bg-atlas-bg-secondary flex items-center justify-center group-hover:bg-atlas-gold/10 transition-colors">
+                                    <iconify-icon icon="lucide:download" class="w-5 h-5 text-atlas-text-secondary group-hover:text-atlas-gold transition-colors"></iconify-icon>
+                                </div>
+                                <div class="text-left">
+                                    <h3 class="font-medium text-atlas-text-primary">Export Learning Data</h3>
+                                    <p class="text-atlas-text-muted text-sm">Download all your expeditions, notes, and progress</p>
+                                </div>
+                            </div>
+                            <iconify-icon icon="lucide:chevron-right" class="w-5 h-5 text-atlas-text-muted"></iconify-icon>
+                        </button>
+
+                        <button class="w-full flex items-center justify-between p-4 bg-atlas-bg-tertiary border border-atlas-border rounded-xl hover:border-atlas-gold/50 hover:bg-atlas-bg-tertiary/80 transition-all duration-200 group">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-lg bg-atlas-bg-secondary flex items-center justify-center group-hover:bg-atlas-gold/10 transition-colors">
+                                    <iconify-icon icon="lucide:trash-2" class="w-5 h-5 text-atlas-text-secondary group-hover:text-atlas-gold transition-colors"></iconify-icon>
+                                </div>
+                                <div class="text-left">
+                                    <h3 class="font-medium text-atlas-text-primary">Clear Cache</h3>
+                                    <p class="text-atlas-text-muted text-sm">Remove temporary files and cached video data</p>
+                                </div>
+                            </div>
+                            <iconify-icon icon="lucide:chevron-right" class="w-5 h-5 text-atlas-text-muted"></iconify-icon>
+                        </button>
+
+                        <a href="#" id="privacy-policy-link" class="flex items-center justify-center gap-2 py-3 text-atlas-text-secondary hover:text-atlas-gold transition-colors text-sm">
+                            <iconify-icon icon="lucide:file-text" class="w-4 h-4"></iconify-icon>
+                            <span>View Privacy Policy</span>
+                        </a>
+                    </div>
+                </section>
+
+                <!-- Action Buttons -->
+                <div class="flex items-center justify-end gap-4 pt-4">
+                    <button 
+                        type="button"
+                        id="cancel-btn"
+                        class="px-6 py-2.5 rounded-lg border border-atlas-border text-atlas-text-secondary font-medium hover:text-atlas-text-primary hover:border-atlas-text-muted transition-all duration-200"
+                    >
+                        Cancel
+                    </button>
+                    <button 
+                        type="submit"
+                        id="save-btn"
+                        class="px-6 py-2.5 rounded-lg bg-atlas-gold text-atlas-bg-primary font-display font-bold hover:bg-atlas-gold-hover transition-all duration-200 flex items-center gap-2"
+                    >
+                        <iconify-icon icon="lucide:check" class="w-4 h-4"></iconify-icon>
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+
+            <!-- Footer -->
+            <footer class="mt-12 pt-8 border-t border-atlas-border">
+                <div class="flex items-center justify-between text-atlas-text-muted text-sm">
+                    <p>AtlasED v1.0.0</p>
+                    <div class="flex items-center gap-4">
+                        <a href="#" class="hover:text-atlas-gold transition-colors">Documentation</a>
+                        <a href="#" class="hover:text-atlas-gold transition-colors">Support</a>
+                        <a href="#" class="hover:text-atlas-gold transition-colors">GitHub</a>
+                    </div>
+                </div>
+            </footer>
+        </main>
+    </div>
+
+    <script>
+        // Toggle API Key Visibility
+        const apiKeyInput = document.getElementById('api-key-input');
+        const toggleVisibilityBtn = document.getElementById('toggle-visibility-btn');
+        const eyeIcon = document.getElementById('eye-icon');
+        let isVisible = false;
+
+        toggleVisibilityBtn.addEventListener('click', () => {
+            isVisible = !isVisible;
+            apiKeyInput.type = isVisible ? 'text' : 'password';
+            eyeIcon.setAttribute('icon', isVisible ? 'lucide:eye-off' : 'lucide:eye');
+        });
+
+        // Validate API Key
+        const validateBtn = document.getElementById('validate-api-btn');
+        const validationSuccess = document.getElementById('validation-success');
+        const validationError = document.getElementById('validation-error');
+
+        validateBtn.addEventListener('click', () => {
+            const apiKey = apiKeyInput.value.trim();
+            
+            // Hide previous states
+            validationSuccess.classList.add('hidden');
+            validationError.classList.add('hidden');
+            
+            if (!apiKey) {
+                validationError.classList.remove('hidden');
+                return;
+            }
+
+            // Simulate validation
+            validateBtn.textContent = 'Validating...';
+            validateBtn.disabled = true;
+            
+            setTimeout(() => {
+                validateBtn.textContent = 'Validate';
+                validateBtn.disabled = false;
+                
+                // Demo: Success if key starts with "AI", error otherwise
+                if (apiKey.startsWith('AI')) {
+                    validationSuccess.classList.remove('hidden');
+                    apiKeyInput.classList.add('border-atlas-success/50');
+                    setTimeout(() => {
+                        apiKeyInput.classList.remove('border-atlas-success/50');
+                    }, 3000);
+                } else {
+                    validationError.classList.remove('hidden');
+                    apiKeyInput.classList.add('border-atlas-error/50');
+                    setTimeout(() => {
+                        apiKeyInput.classList.remove('border-atlas-error/50');
+                    }, 3000);
+                }
+            }, 1500);
+        });
+
+        // Playback Speed Selection
+        const speedRadios = document.querySelectorAll('input[name="playback-speed"]');
+        speedRadios.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                console.log('Playback speed set to:', e.target.value + 'x');
+            });
+        });
+
+        // Form Submission
+        document.querySelector('form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const saveBtn = document.getElementById('save-btn');
+            saveBtn.innerHTML = '<iconify-icon icon="lucide:loader-2" class="w-4 h-4 animate-spin"></iconify-icon>Saving...';
+            
+            setTimeout(() => {
+                saveBtn.innerHTML = '<iconify-icon icon="lucide:check" class="w-4 h-4"></iconify-icon>Saved!';
+                saveBtn.classList.add('bg-atlas-success');
+                setTimeout(() => {
+                    saveBtn.innerHTML = '<iconify-icon icon="lucide:check" class="w-4 h-4"></iconify-icon>Save Changes';
+                    saveBtn.classList.remove('bg-atlas-success');
+                }, 2000);
+            }, 1000);
+        });
+
+        // Cancel Button
+        document.getElementById('cancel-btn').addEventListener('click', () => {
+            window.history.back();
+        });
+
+        // Back Button
+        document.getElementById('nav-back-btn').addEventListener('click', () => {
+            window.history.back();
+        });
+    </script>
+</body>
+</html>
+

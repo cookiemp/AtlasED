@@ -1,0 +1,853 @@
+/* ExpeditionView Page Styles - Matches expeditionview.html design */
+
+.expedition-view-page {
+    min-height: 100vh;
+    background-color: #0f0f0f;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Header */
+.expedition-header {
+    height: 3.5rem;
+    background-color: #1a1a1a;
+    border-bottom: 1px solid #2a2a2a;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1.5rem;
+    user-select: none;
+    -webkit-app-region: drag;
+}
+
+.expedition-header-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    -webkit-app-region: no-drag;
+}
+
+.back-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #a3a3a3;
+    font-size: 0.875rem;
+    font-weight: 500;
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.back-btn:hover {
+    color: #ffffff;
+}
+
+.back-btn iconify-icon {
+    font-size: 1.125rem;
+}
+
+.expedition-header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    -webkit-app-region: no-drag;
+}
+
+.header-icon-btn {
+    width: 2.25rem;
+    height: 2.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.5rem;
+    color: #a3a3a3;
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.header-icon-btn:hover {
+    color: #ffffff;
+    background-color: #242424;
+}
+
+.header-icon-btn iconify-icon {
+    font-size: 1.125rem;
+}
+
+/* Main Content */
+.expedition-main {
+    flex: 1;
+    overflow: auto;
+}
+
+.expedition-container {
+    max-width: 72rem;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+/* Expedition Info Header */
+.expedition-info {
+    margin-bottom: 2rem;
+}
+
+.expedition-info-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+}
+
+.expedition-info-left {
+    flex: 1;
+}
+
+.expedition-title {
+    font-family: var(--font-display);
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 0.5rem;
+}
+
+.expedition-meta {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    color: #a3a3a3;
+}
+
+.expedition-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.expedition-meta-item iconify-icon {
+    font-size: 0.875rem;
+}
+
+.resume-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background-color: #d4a953;
+    color: #0f0f0f;
+    font-weight: 600;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.resume-btn:hover {
+    background-color: #e5bd6b;
+}
+
+.resume-btn iconify-icon {
+    font-size: 1.125rem;
+}
+
+/* Progress Card */
+.progress-card {
+    background-color: #1a1a1a;
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    border: 1px solid #2a2a2a;
+}
+
+.progress-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+}
+
+.progress-label {
+    font-size: 0.875rem;
+    color: #a3a3a3;
+}
+
+.progress-value {
+    font-family: var(--font-display);
+    font-weight: 700;
+    color: #d4a953;
+    font-size: 1.125rem;
+}
+
+.progress-track {
+    height: 0.5rem;
+    background-color: #242424;
+    border-radius: 9999px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #d4a953, #e5bd6b);
+    border-radius: 9999px;
+    transition: width 0.5s;
+}
+
+.progress-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 0.75rem;
+    font-size: 0.75rem;
+    color: #737373;
+}
+
+/* View Controls */
+.view-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+}
+
+.view-controls-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.waypoints-title {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.view-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    background-color: #1a1a1a;
+    border-radius: 0.5rem;
+    padding: 0.25rem;
+    border: 1px solid #2a2a2a;
+}
+
+.view-toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #737373;
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.view-toggle-btn:hover {
+    color: #ffffff;
+}
+
+.view-toggle-btn.active {
+    background-color: rgba(212, 169, 83, 0.12);
+    color: #d4a953;
+    border: 1px solid rgba(212, 169, 83, 0.3);
+}
+
+.view-toggle-btn iconify-icon {
+    font-size: 1rem;
+}
+
+.view-controls-right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-size: 0.875rem;
+    color: #a3a3a3;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.status-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+}
+
+.status-dot.pending {
+    background-color: #242424;
+}
+
+.status-dot.progress {
+    background-color: rgba(212, 169, 83, 0.3);
+    border: 1px solid rgba(212, 169, 83, 0.5);
+}
+
+.status-dot.completed {
+    background-color: #d4a953;
+}
+
+/* Waypoint List */
+.waypoint-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+/* Waypoint Row */
+.waypoint-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    border-radius: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.waypoint-row:hover {
+    transform: translateX(4px);
+}
+
+/* Pending State */
+.waypoint-row.pending {
+    background: transparent;
+    border: 1px solid #2a2a2a;
+}
+
+.waypoint-row.pending:hover {
+    background-color: rgba(255, 255, 255, 0.03);
+    border-color: #3a3a3a;
+}
+
+/* In Progress State */
+.waypoint-row.progress {
+    background-color: rgba(212, 169, 83, 0.12);
+    border: 1px solid rgba(212, 169, 83, 0.2);
+}
+
+.waypoint-row.progress:hover {
+    background-color: rgba(212, 169, 83, 0.18);
+}
+
+/* Completed State */
+.waypoint-row.completed {
+    background-color: rgba(212, 169, 83, 0.2);
+    border: 1px solid rgba(212, 169, 83, 0.3);
+}
+
+.waypoint-row.completed:hover {
+    background-color: rgba(212, 169, 83, 0.35);
+}
+
+/* Custom Checkbox */
+.waypoint-checkbox {
+    appearance: none;
+    width: 1.25rem;
+    height: 1.25rem;
+    border: 2px solid #737373;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.waypoint-checkbox:checked {
+    background-color: #d4a953;
+    border-color: #d4a953;
+}
+
+.waypoint-checkbox:checked::after {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 1px;
+    width: 6px;
+    height: 11px;
+    border: solid #0f0f0f;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+/* Waypoint Thumbnail */
+.waypoint-thumbnail {
+    width: 5rem;
+    aspect-ratio: 4/3;
+    background-color: #242424;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.waypoint-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.waypoint-row.completed .waypoint-thumbnail img {
+    opacity: 0.6;
+}
+
+.waypoint-thumbnail-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.waypoint-thumbnail-overlay iconify-icon {
+    font-size: 1.5rem;
+    color: #0f0f0f;
+}
+
+.waypoint-duration {
+    position: absolute;
+    bottom: 0.25rem;
+    right: 0.25rem;
+    background-color: rgba(15, 15, 15, 0.8);
+    color: #ffffff;
+    font-size: 0.625rem;
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+}
+
+/* Progress bar on thumbnail */
+.waypoint-thumbnail-progress {
+    position: absolute;
+    bottom: 0.5rem;
+    left: 0.5rem;
+    right: 0.5rem;
+}
+
+.waypoint-thumbnail-progress-track {
+    height: 0.25rem;
+    background-color: #242424;
+    border-radius: 9999px;
+    overflow: hidden;
+}
+
+.waypoint-thumbnail-progress-fill {
+    height: 100%;
+    background-color: #d4a953;
+    border-radius: 9999px;
+}
+
+/* Waypoint Info */
+.waypoint-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.waypoint-info-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.25rem;
+}
+
+.waypoint-index {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #d4a953;
+}
+
+.waypoint-row.pending .waypoint-index {
+    color: #737373;
+}
+
+.waypoint-title {
+    color: #ffffff;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.waypoint-info-footer {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+/* Status Badge */
+.status-badge {
+    font-size: 0.625rem;
+    font-weight: 600;
+    padding: 0.125rem 0.5rem;
+    border-radius: 9999px;
+}
+
+.status-badge.pending {
+    background-color: #242424;
+    color: #737373;
+}
+
+.status-badge.progress {
+    background-color: rgba(212, 169, 83, 0.12);
+    color: #d4a953;
+    border: 1px solid rgba(212, 169, 83, 0.3);
+}
+
+.status-badge.completed {
+    background-color: #d4a953;
+    color: #0f0f0f;
+}
+
+.waypoint-watched {
+    font-size: 0.75rem;
+    color: #737373;
+}
+
+.waypoint-row.progress .waypoint-watched {
+    color: #a3a3a3;
+}
+
+/* Waypoint Actions */
+.waypoint-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.waypoint-progress-text {
+    font-family: var(--font-display);
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: #d4a953;
+}
+
+.waypoint-row.pending .waypoint-progress-text {
+    color: #737373;
+}
+
+.waypoint-action-btn {
+    width: 2.25rem;
+    height: 2.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.5rem;
+    color: #737373;
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.waypoint-action-btn:hover {
+    color: #ffffff;
+    background-color: #242424;
+}
+
+.waypoint-action-btn.gold {
+    color: #d4a953;
+}
+
+.waypoint-action-btn iconify-icon {
+    font-size: 1.125rem;
+}
+
+/* Grid View */
+.waypoint-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+}
+
+/* Grid Card */
+.grid-card {
+    border-radius: 0.75rem;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.grid-card:hover {
+    transform: translateY(-4px);
+}
+
+/* Pending Grid Card */
+.grid-card.pending {
+    background-color: #1a1a1a;
+    border: 1px solid #2a2a2a;
+}
+
+.grid-card.pending:hover {
+    border-color: #3a3a3a;
+}
+
+/* Progress Grid Card */
+.grid-card.progress {
+    background-color: rgba(212, 169, 83, 0.1);
+    border: 1px solid rgba(212, 169, 83, 0.2);
+}
+
+/* Completed Grid Card */
+.grid-card.completed {
+    background-color: rgba(212, 169, 83, 0.2);
+    border: 1px solid rgba(212, 169, 83, 0.3);
+}
+
+.grid-card-thumbnail {
+    position: relative;
+}
+
+.grid-card-thumbnail-inner {
+    aspect-ratio: 16/9;
+    background-color: #242424;
+    position: relative;
+}
+
+.grid-card-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.grid-card.completed .grid-card-thumbnail img {
+    opacity: 0.6;
+}
+
+.grid-card-check-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.grid-card-check-overlay iconify-icon {
+    font-size: 2.5rem;
+    color: #d4a953;
+}
+
+.grid-card-index {
+    position: absolute;
+    top: 0.5rem;
+    left: 0.5rem;
+    font-size: 0.625rem;
+    font-weight: 700;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+}
+
+.grid-card.pending .grid-card-index {
+    background-color: #242424;
+    color: #737373;
+}
+
+.grid-card.progress .grid-card-index {
+    background-color: rgba(212, 169, 83, 0.2);
+    border: 1px solid rgba(212, 169, 83, 0.5);
+    color: #d4a953;
+}
+
+.grid-card.completed .grid-card-index {
+    background-color: #d4a953;
+    color: #0f0f0f;
+}
+
+.grid-card-bookmark {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    width: 1.5rem;
+    height: 1.5rem;
+    background-color: rgba(15, 15, 15, 0.8);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.grid-card-bookmark iconify-icon {
+    color: #d4a953;
+    font-size: 0.75rem;
+}
+
+.grid-card-progress-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 0.25rem;
+    background-color: #242424;
+}
+
+.grid-card-progress-fill {
+    height: 100%;
+    background-color: #d4a953;
+}
+
+.grid-card-gradient {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(15, 15, 15, 0.8), transparent, transparent);
+}
+
+.grid-card-content {
+    padding: 1rem;
+}
+
+.grid-card-title {
+    font-weight: 500;
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.grid-card.pending .grid-card-title {
+    color: #a3a3a3;
+}
+
+.grid-card.progress .grid-card-title,
+.grid-card.completed .grid-card-title {
+    color: #ffffff;
+}
+
+.grid-card-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.75rem;
+}
+
+.grid-card-status {
+    font-weight: 600;
+}
+
+.grid-card.pending .grid-card-status {
+    color: #737373;
+}
+
+.grid-card.progress .grid-card-status,
+.grid-card.completed .grid-card-status {
+    color: #d4a953;
+}
+
+.grid-card-duration {
+    color: #737373;
+}
+
+/* Empty Sections */
+.empty-section {
+    margin-top: 3rem;
+}
+
+.empty-section-title {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #ffffff;
+    margin-bottom: 1rem;
+}
+
+.empty-section-content {
+    background-color: #1a1a1a;
+    border-radius: 0.75rem;
+    border: 1px solid #2a2a2a;
+    padding: 2rem;
+    text-align: center;
+}
+
+.empty-section-icon {
+    width: 4rem;
+    height: 4rem;
+    background-color: #242424;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+}
+
+.empty-section-icon iconify-icon {
+    font-size: 1.5rem;
+    color: #737373;
+}
+
+.empty-section-text {
+    color: #a3a3a3;
+    margin-bottom: 0.5rem;
+}
+
+.empty-section-subtext {
+    font-size: 0.875rem;
+    color: #737373;
+}
+
+/* Loading State */
+.expedition-loading {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.loading-spinner {
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 3px solid #242424;
+    border-top-color: #d4a953;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .waypoint-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 640px) {
+    .expedition-container {
+        padding: 1rem;
+    }
+
+    .expedition-info-top {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .expedition-meta {
+        flex-wrap: wrap;
+    }
+
+    .waypoint-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .view-controls {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: stretch;
+    }
+
+    .view-controls-right {
+        flex-wrap: wrap;
+    }
+}

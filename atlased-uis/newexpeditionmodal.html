@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AtlasED - New Expedition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <style>
+        @import url('https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&f[]=cabinet-grotesk@400,500,700,800&display=swap');
+        
+        :root {
+            --bg-primary: #0f0f0f;
+            --bg-secondary: #1a1a1a;
+            --bg-tertiary: #242424;
+            --bg-elevated: #1f1f1f;
+            --accent-gold: #d4a953;
+            --accent-gold-hover: #e5bd6b;
+            --accent-gold-dim: rgba(212, 169, 83, 0.15);
+            --text-primary: #ffffff;
+            --text-secondary: #a3a3a3;
+            --text-muted: #737373;
+            --border-subtle: #2a2a2a;
+            --error-red: #ef4444;
+        }
+        
+        body {
+            font-family: 'Satoshi', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
+        .font-display {
+            font-family: 'Cabinet Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #333;
+        }
+        
+        /* Spinner animation */
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .animate-spin-slow {
+            animation: spin 1.5s linear infinite;
+        }
+        
+        /* Modal enter animation */
+        @keyframes modalEnter {
+            from {
+                opacity: 0;
+                transform: scale(0.95) translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+        
+        .modal-animate {
+            animation: modalEnter 0.3s ease-out;
+        }
+        
+        /* Input focus glow */
+        .input-glow:focus {
+            box-shadow: 0 0 0 2px rgba(212, 169, 83, 0.2);
+        }
+        
+        /* Thumbnail hover effect */
+        .thumbnail-hover {
+            transition: all 0.2s ease;
+        }
+        
+        .thumbnail-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        }
+        
+        /* Stagger animation for thumbnails */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .stagger-item {
+            opacity: 0;
+            animation: fadeInUp 0.4s ease-out forwards;
+        }
+    </style>
+</head>
+<body>
+    <div class="min-h-screen bg-[#0f0f0f] flex items-center justify-center p-8">
+        
+        <!-- Modal Overlay -->
+        <div id="modalOverlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            
+            <!-- Modal Container -->
+            <div class="modal-animate w-full max-w-2xl bg-[#1a1a1a] rounded-2xl border border-[#2a2a2a] shadow-2xl overflow-hidden">
+                
+                <!-- Modal Header -->
+                <div class="px-8 pt-8 pb-6 border-b border-[#2a2a2a]">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-[#d4a953]/10 flex items-center justify-center">
+                                <iconify-icon icon="lucide:compass" class="text-xl text-[#d4a953]"></iconify-icon>
+                            </div>
+                            <div>
+                                <h2 class="font-display text-xl font-bold text-white">Add New Expedition</h2>
+                                <p class="text-sm text-[#737373] mt-0.5">Transform a YouTube playlist into a structured learning journey</p>
+                            </div>
+                        </div>
+                        <button id="closeBtn" class="w-8 h-8 rounded-lg flex items-center justify-center text-[#737373] hover:text-white hover:bg-[#242424] transition-all duration-200">
+                            <iconify-icon icon="lucide:x" class="text-lg"></iconify-icon>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Modal Body -->
+                <div class="px-8 py-6">
+                    
+                    <!-- YouTube URL Input -->
+                    <div class="space-y-2 mb-5">
+                        <label class="block text-sm font-medium text-[#a3a3a3]">
+                            YouTube Playlist URL <span class="text-[#d4a953]">*</span>
+                        </label>
+                        <div class="relative">
+                            <div class="absolute left-4 top-1/2 -translate-y-1/2 text-[#737373]">
+                                <iconify-icon icon="lucide:link" class="text-lg"></iconify-icon>
+                            </div>
+                            <input 
+                                type="text" 
+                                id="playlistUrl"
+                                placeholder="Paste playlist URL" 
+                                class="input-glow w-full bg-[#242424] border border-[#2a2a2a] rounded-xl pl-11 pr-4 py-3.5 text-white placeholder-[#737373] focus:outline-none focus:border-[#d4a953]/50 transition-all duration-200"
+                            >
+                            <!-- Clear button (hidden by default) -->
+                            <button id="clearUrl" class="absolute right-4 top-1/2 -translate-y-1/2 text-[#737373] hover:text-white hidden">
+                                <iconify-icon icon="lucide:x-circle" class="text-lg"></iconify-icon>
+                            </button>
+                        </div>
+                        <p class="text-xs text-[#737373] flex items-center gap-1.5">
+                            <iconify-icon icon="lucide:info" class="text-sm"></iconify-icon>
+                            Supports: youtube.com/playlist?list=..., youtu.be/..., and YouTube Music playlists
+                        </p>
+                    </div>
+                    
+                    <!-- Expedition Name Input (Optional) -->
+                    <div class="space-y-2 mb-6">
+                        <label class="block text-sm font-medium text-[#a3a3a3]">
+                            Expedition Name <span class="text-[#737373] font-normal">(optional)</span>
+                        </label>
+                        <div class="relative">
+                            <div class="absolute left-4 top-1/2 -translate-y-1/2 text-[#737373]">
+                                <iconify-icon icon="lucide:type" class="text-lg"></iconify-icon>
+                            </div>
+                            <input 
+                                type="text" 
+                                id="expeditionName"
+                                placeholder="Leave blank to use playlist title" 
+                                class="input-glow w-full bg-[#242424] border border-[#2a2a2a] rounded-xl pl-11 pr-4 py-3.5 text-white placeholder-[#737373] focus:outline-none focus:border-[#d4a953]/50 transition-all duration-200"
+                            >
+                        </div>
+                    </div>
+                    
+                    <!-- Loading State -->
+                    <div id="loadingState" class="hidden py-8">
+                        <div class="flex flex-col items-center justify-center">
+                            <div class="relative w-12 h-12 mb-4">
+                                <div class="absolute inset-0 rounded-full border-2 border-[#242424]"></div>
+                                <div class="absolute inset-0 rounded-full border-2 border-[#d4a953] border-t-transparent animate-spin-slow"></div>
+                            </div>
+                            <p class="text-white font-medium mb-1">Fetching playlist...</p>
+                            <p class="text-sm text-[#737373]">Retrieving video information</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Error State -->
+                    <div id="errorState" class="hidden mb-6">
+                        <div class="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
+                            <div class="flex items-start gap-3">
+                                <div class="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                    <iconify-icon icon="lucide:alert-circle" class="text-red-400"></iconify-icon>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="text-white font-medium mb-1">Unable to fetch playlist</p>
+                                    <p class="text-sm text-red-400/80 mb-3">The playlist URL appears to be invalid or the playlist is private.</p>
+                                    <button id="retryBtn" class="inline-flex items-center gap-2 text-sm font-medium text-red-400 hover:text-red-300 transition-colors">
+                                        <iconify-icon icon="lucide:refresh-cw" class="text-sm"></iconify-icon>
+                                        Try again
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Video Preview Grid -->
+                    <div id="previewGrid" class="hidden">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-sm font-medium text-[#a3a3a3]">
+                                Videos found <span id="videoCount" class="text-white ml-1">(12)</span>
+                            </h3>
+                            <span class="text-xs text-[#737373]">Preview</span>
+                        </div>
+                        
+                        <div class="bg-[#242424] rounded-xl p-4 border border-[#2a2a2a]">
+                            <div class="grid grid-cols-4 gap-3" id="thumbnailGrid">
+                                <!-- Thumbnails will be populated here -->
+                            </div>
+                            
+                            <!-- Show more indicator -->
+                            <div id="moreVideos" class="hidden mt-3 pt-3 border-t border-[#2a2a2a] text-center">
+                                <span class="text-sm text-[#737373]">And <span id="remainingCount">8</span> more videos</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                </div>
+                
+                <!-- Modal Footer -->
+                <div class="px-8 py-5 border-t border-[#2a2a2a] bg-[#1a1a1a]">
+                    <div class="flex items-center justify-end gap-3">
+                        <button 
+                            id="cancelBtn"
+                            class="px-5 py-2.5 rounded-xl text-[#a3a3a3] font-medium hover:text-white hover:bg-[#242424] transition-all duration-200"
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            id="createBtn"
+                            disabled
+                            class="px-6 py-2.5 rounded-xl bg-[#d4a953] text-[#0f0f0f] font-semibold hover:bg-[#e5bd6b] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#d4a953] transition-all duration-200 flex items-center gap-2"
+                        >
+                            <span>Create Expedition</span>
+                            <iconify-icon icon="lucide:arrow-right" class="text-sm"></iconify-icon>
+                        </button>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+        
+        <!-- Demo Controls (for presentation) -->
+        <div class="fixed bottom-6 right-6 flex flex-col gap-2">
+            <button onclick="showState('initial')" class="px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-[#a3a3a3] hover:text-white hover:border-[#d4a953]/30 transition-all">
+                Reset
+            </button>
+            <button onclick="showState('loading')" class="px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-[#a3a3a3] hover:text-white hover:border-[#d4a953]/30 transition-all">
+                Show Loading
+            </button>
+            <button onclick="showState('error')" class="px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-[#a3a3a3] hover:text-white hover:border-[#d4a953]/30 transition-all">
+                Show Error
+            </button>
+            <button onclick="showState('preview')" class="px-4 py-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg text-sm text-[#a3a3a3] hover:text-white hover:border-[#d4a953]/30 transition-all">
+                Show Preview
+            </button>
+        </div>
+        
+    </div>
+    
+    <script>
+        // Sample thumbnail data
+        const sampleThumbnails = [
+            { color: 'from-red-500/20 to-orange-500/20', title: 'Introduction' },
+            { color: 'from-blue-500/20 to-cyan-500/20', title: 'Getting Started' },
+            { color: 'from-green-500/20 to-emerald-500/20', title: 'Core Concepts' },
+            { color: 'from-purple-500/20 to-pink-500/20', title: 'Advanced Topics' },
+            { color: 'from-yellow-500/20 to-amber-500/20', title: 'Best Practices' },
+            { color: 'from-indigo-500/20 to-violet-500/20', title: 'Implementation' },
+            { color: 'from-rose-500/20 to-red-500/20', title: 'Troubleshooting' },
+            { color: 'from-teal-500/20 to-cyan-500/20', title: 'Conclusion' },
+        ];
+        
+        // DOM Elements
+        const urlInput = document.getElementById('playlistUrl');
+        const clearUrlBtn = document.getElementById('clearUrl');
+        const createBtn = document.getElementById('createBtn');
+        const loadingState = document.getElementById('loadingState');
+        const errorState = document.getElementById('errorState');
+        const previewGrid = document.getElementById('previewGrid');
+        const thumbnailGrid = document.getElementById('thumbnailGrid');
+        
+        // URL Input Handler
+        urlInput.addEventListener('input', (e) => {
+            const hasValue = e.target.value.trim().length > 0;
+            clearUrlBtn.classList.toggle('hidden', !hasValue);
+            createBtn.disabled = !hasValue;
+        });
+        
+        // Clear URL
+        clearUrlBtn.addEventListener('click', () => {
+            urlInput.value = '';
+            clearUrlBtn.classList.add('hidden');
+            createBtn.disabled = true;
+            showState('initial');
+        });
+        
+        // Generate thumbnails
+        function generateThumbnails(count = 8) {
+            thumbnailGrid.innerHTML = '';
+            const displayCount = Math.min(count, 8);
+            
+            for (let i = 0; i < displayCount; i++) {
+                const thumb = sampleThumbnails[i % sampleThumbnails.length];
+                const delay = i * 50;
+                
+                const thumbnailEl = document.createElement('div');
+                thumbnailEl.className = `stagger-item thumbnail-hover aspect-video rounded-lg bg-gradient-to-br ${thumb.color} border border-[#2a2a2a] overflow-hidden cursor-pointer relative group`;
+                thumbnailEl.style.animationDelay = `${delay}ms`;
+                
+                thumbnailEl.innerHTML = `
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <iconify-icon icon="lucide:play" class="text-white/30 text-2xl group-hover:text-white/60 transition-colors"></iconify-icon>
+                    </div>
+                    <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
+                        <p class="text-[10px] text-white/80 truncate">${thumb.title} ${i + 1}</p>
+                    </div>
+                    <div class="absolute top-2 right-2 w-5 h-5 rounded bg-black/50 flex items-center justify-center text-[10px] text-white/80 font-medium">
+                        ${i + 1}
+                    </div>
+                `;
+                
+                thumbnailGrid.appendChild(thumbnailEl);
+            }
+            
+            // Show "more" indicator if needed
+            const moreEl = document.getElementById('moreVideos');
+            if (count > 8) {
+                document.getElementById('remainingCount').textContent = count - 8;
+                moreEl.classList.remove('hidden');
+            } else {
+                moreEl.classList.add('hidden');
+            }
+        }
+        
+        // State management
+        function showState(state) {
+            loadingState.classList.add('hidden');
+            errorState.classList.add('hidden');
+            previewGrid.classList.add('hidden');
+            
+            switch(state) {
+                case 'loading':
+                    loadingState.classList.remove('hidden');
+                    break;
+                case 'error':
+                    errorState.classList.remove('hidden');
+                    break;
+                case 'preview':
+                    previewGrid.classList.remove('hidden');
+                    document.getElementById('videoCount').textContent = '(24)';
+                    generateThumbnails(24);
+                    break;
+                case 'initial':
+                default:
+                    break;
+            }
+        }
+        
+        // Retry button
+        document.getElementById('retryBtn').addEventListener('click', () => {
+            showState('initial');
+        });
+        
+        // Cancel button
+        document.getElementById('cancelBtn').addEventListener('click', () => {
+            showState('initial');
+        });
+        
+        document.getElementById('closeBtn').addEventListener('click', () => {
+            showState('initial');
+        });
+        
+        // Create button - simulate loading then preview
+        createBtn.addEventListener('click', () => {
+            if (urlInput.value.trim()) {
+                showState('loading');
+                setTimeout(() => {
+                    // Randomly show error or preview for demo
+                    Math.random() > 0.3 ? showState('preview') : showState('error');
+                }, 1500);
+            }
+        });
+    </script>
+</body>
+</html>

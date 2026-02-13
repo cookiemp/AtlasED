@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AtlasED - Memory Checkpoints</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link rel="preconnect" href="https://api.fontshare.com">
+    <link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@400,500,700,800&f[]=satoshi@400,500,600,700&f[]=jetbrains-mono@400,500&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'atlas-bg': {
+                            primary: '#0f0f0f',
+                            secondary: '#1a1a1a',
+                            tertiary: '#242424'
+                        },
+                        'atlas-gold': {
+                            DEFAULT: '#d4a953',
+                            hover: '#e5bd6b',
+                            muted: '#a08040',
+                            light: '#f0d695'
+                        },
+                        'atlas-text': {
+                            primary: '#ffffff',
+                            secondary: '#a3a3a3',
+                            muted: '#737373'
+                        },
+                        'atlas-border': '#2a2a2a',
+                        'atlas-success': '#4ade80',
+                        'atlas-warning': '#fbbf24',
+                        'atlas-error': '#f87171'
+                    },
+                    fontFamily: {
+                        'display': ['Cabinet Grotesk', 'sans-serif'],
+                        'body': ['Satoshi', 'sans-serif'],
+                        'mono': ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2a2a2a;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #d4a953;
+        }
+        
+        /* Draggable title bar area */
+        .title-bar {
+            -webkit-app-region: drag;
+            app-region: drag;
+        }
+        .title-bar-button {
+            -webkit-app-region: no-drag;
+            app-region: no-drag;
+        }
+        
+        /* Smooth transitions */
+        .checkpoint-card {
+            transition: all 0.2s ease-out;
+        }
+        .checkpoint-card:hover {
+            transform: translateY(-2px);
+        }
+        
+        /* Progress bar animation */
+        @keyframes progressFill {
+            from { width: 0%; }
+        }
+        .progress-fill {
+            animation: progressFill 0.8s ease-out forwards;
+        }
+        
+        /* Difficulty badge glow effects */
+        .difficulty-easy {
+            box-shadow: 0 0 12px rgba(74, 222, 128, 0.15);
+        }
+        .difficulty-medium {
+            box-shadow: 0 0 12px rgba(251, 191, 36, 0.15);
+        }
+        .difficulty-hard {
+            box-shadow: 0 0 12px rgba(248, 113, 113, 0.15);
+        }
+        
+        /* Timeline connector line */
+        .timeline-line {
+            background: linear-gradient(to bottom, #2a2a2a 0%, #d4a953 50%, #2a2a2a 100%);
+        }
+    </style>
+</head>
+<body>
+    <div class="min-h-screen bg-atlas-bg-primary text-atlas-text-primary font-body">
+        <!-- Custom Title Bar -->
+        <header class="title-bar h-14 bg-atlas-bg-secondary border-b border-atlas-border flex items-center justify-between px-6 select-none">
+            <div class="flex items-center gap-4">
+                <button id="back-btn" class="title-bar-button p-2 rounded-lg hover:bg-atlas-bg-tertiary transition-colors group" title="Go Back">
+                    <iconify-icon icon="lucide:arrow-left" class="text-atlas-text-secondary group-hover:text-atlas-gold transition-colors text-lg"></iconify-icon>
+                </button>
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-atlas-gold/10 flex items-center justify-center">
+                        <iconify-icon icon="lucide:compass" class="text-atlas-gold text-lg"></iconify-icon>
+                    </div>
+                    <span class="font-display font-bold text-lg tracking-tight">AtlasED</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button class="title-bar-button p-2 rounded-lg hover:bg-atlas-bg-tertiary transition-colors">
+                    <iconify-icon icon="lucide:minus" class="text-atlas-text-secondary hover:text-atlas-text-primary transition-colors"></iconify-icon>
+                </button>
+                <button class="title-bar-button p-2 rounded-lg hover:bg-atlas-bg-tertiary transition-colors">
+                    <iconify-icon icon="lucide:square" class="text-atlas-text-secondary hover:text-atlas-text-primary transition-colors text-sm"></iconify-icon>
+                </button>
+                <button class="title-bar-button p-2 rounded-lg hover:bg-atlas-error/20 transition-colors">
+                    <iconify-icon icon="lucide:x" class="text-atlas-text-secondary hover:text-atlas-error transition-colors"></iconify-icon>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-auto">
+            <!-- Header Section -->
+            <div class="px-8 pt-8 pb-6 border-b border-atlas-border">
+                <div class="max-w-7xl mx-auto">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <h1 class="font-display font-bold text-3xl text-atlas-text-primary mb-2">Memory Checkpoints</h1>
+                            <p class="text-atlas-text-secondary max-w-2xl text-base leading-relaxed">
+                                Spaced repetition reviews are scheduled to maximize long-term retention. 
+                                Complete checkpoints when due to strengthen neural pathways and prevent forgetting.
+                            </p>
+                        </div>
+                        <!-- Stats Summary -->
+                        <div class="flex gap-6">
+                            <div class="text-center">
+                                <div class="text-3xl font-display font-bold text-atlas-gold">4</div>
+                                <div class="text-xs text-atlas-text-muted uppercase tracking-wider mt-1">Due Today</div>
+                            </div>
+                            <div class="w-px bg-atlas-border"></div>
+                            <div class="text-center">
+                                <div class="text-3xl font-display font-bold text-atlas-text-secondary">12</div>
+                                <div class="text-xs text-atlas-text-muted uppercase tracking-wider mt-1">Upcoming</div>
+                            </div>
+                            <div class="w-px bg-atlas-border"></div>
+                            <div class="text-center">
+                                <div class="text-3xl font-display font-bold text-atlas-success">89</div>
+                                <div class="text-xs text-atlas-text-muted uppercase tracking-wider mt-1">Completed</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filter & Controls Bar -->
+            <div class="px-8 py-4 bg-atlas-bg-secondary/50 border-b border-atlas-border">
+                <div class="max-w-7xl mx-auto flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <!-- Filter Dropdown -->
+                        <div class="relative">
+                            <select id="filter-select" class="appearance-none bg-atlas-bg-tertiary border border-atlas-border rounded-lg px-4 py-2 pr-10 text-sm text-atlas-text-primary focus:outline-none focus:border-atlas-gold transition-colors cursor-pointer">
+                                <option value="all">All Checkpoints</option>
+                                <option value="due">Due Today</option>
+                                <option value="easy">Easy Difficulty</option>
+                                <option value="medium">Medium Difficulty</option>
+                                <option value="hard">Hard Difficulty</option>
+                            </select>
+                            <iconify-icon icon="lucide:chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 text-atlas-text-muted pointer-events-none"></iconify-icon>
+                        </div>
+                        <!-- Sort Dropdown -->
+                        <div class="relative">
+                            <select id="sort-select" class="appearance-none bg-atlas-bg-tertiary border border-atlas-border rounded-lg px-4 py-2 pr-10 text-sm text-atlas-text-primary focus:outline-none focus:border-atlas-gold transition-colors cursor-pointer">
+                                <option value="date-asc">Due Date (Earliest)</option>
+                                <option value="date-desc">Due Date (Latest)</option>
+                                <option value="difficulty">Difficulty Level</option>
+                                <option value="expedition">Expedition</option>
+                            </select>
+                            <iconify-icon icon="lucide:chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 text-atlas-text-muted pointer-events-none"></iconify-icon>
+                        </div>
+                    </div>
+                    
+                    <!-- View Toggle & Calendar Hint -->
+                    <div class="flex items-center gap-3">
+                        <button id="timeline-view-btn" class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-atlas-text-secondary hover:text-atlas-gold hover:bg-atlas-bg-tertiary transition-all">
+                            <iconify-icon icon="lucide:calendar-days"></iconify-icon>
+                            <span>Timeline View</span>
+                        </button>
+                        <div class="flex bg-atlas-bg-tertiary rounded-lg p-1">
+                            <button class="p-2 rounded-md bg-atlas-bg-secondary text-atlas-gold" title="Grid View">
+                                <iconify-icon icon="lucide:layout-grid" class="text-sm"></iconify-icon>
+                            </button>
+                            <button class="p-2 rounded-md text-atlas-text-muted hover:text-atlas-text-primary transition-colors" title="List View">
+                                <iconify-icon icon="lucide:list" class="text-sm"></iconify-icon>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content Area -->
+            <div class="px-8 py-8">
+                <div class="max-w-7xl mx-auto">
+                    <!-- Due Today Section -->
+                    <section class="mb-10">
+                        <div class="flex items-center gap-3 mb-6">
+                            <div class="w-10 h-10 rounded-xl bg-atlas-gold/10 flex items-center justify-center">
+                                <iconify-icon icon="lucide:alarm-clock" class="text-atlas-gold text-xl"></iconify-icon>
+                            </div>
+                            <div>
+                                <h2 class="font-display font-bold text-xl text-atlas-text-primary">Due Today</h2>
+                                <p class="text-sm text-atlas-text-muted">Complete these checkpoints to maintain your learning streak</p>
+                            </div>
+                            <div class="ml-auto">
+                                <button id="start-all-reviews-btn" class="flex items-center gap-2 bg-atlas-gold hover:bg-atlas-gold-hover text-atlas-bg-primary font-semibold px-5 py-2.5 rounded-lg transition-all hover:scale-[1.02] active:scale-[0.98]">
+                                    <iconify-icon icon="lucide:play"></iconify-icon>
+                                    Start All (4)
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Checkpoint Cards Grid -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                            <!-- Checkpoint Card 1 -->
+                            <div class="checkpoint-card bg-atlas-bg-secondary border border-atlas-border rounded-xl p-5 hover:border-atlas-gold/50 cursor-pointer group">
+                                <div class="flex items-start justify-between mb-4">
+                                    <div class="flex-1 min-w-0">
+                                        <h3 class="font-display font-semibold text-lg text-atlas-text-primary truncate group-hover:text-atlas-gold transition-colors">
+                                            React Hooks Deep Dive
+                                        </h3>
+                                        <p class="text-sm text-atlas-text-secondary mt-1 flex items-center gap-2">
+                                            <iconify-icon icon="lucide:map" class="text-atlas-text-muted"></iconify-icon>
+                                            Advanced React Patterns
+                                        </p>
+                                    </div>
+                                    <span class="difficulty-easy px-2.5 py-1 rounded-full text-xs font-medium bg-atlas-success/10 text-atlas-success border border-atlas-success/20">
+                                        Easy
+                                    </span>
+                                </div>
+                                
+                                <div class="space-y-3 mb-5">
+                                    <div class="flex items-center justify-between text-sm">
+                                        <span class="text-atlas-text-muted">Last reviewed</span>
+                                        <span class="text-atlas-text-secondary">3 days ago</span>
+                                    </div>
+                                    <div class="flex items-center justify-between text-sm">
+                                        <span class="text-atlas-text-muted">Interval</span>
+                                        <span class="text-atlas-text-secondary">3 days → 7 days</span>
+                                    </div>
+                                </div>
+
+                                <!-- Progress Indicator -->
+                                <div class="mb-4">
+                                    <div class="flex items-center justify-between text-xs mb-2">
+                                        <span class="text-atlas-text-muted">Retention Strength</span>
+                                        <span class="text-atlas-gold font-medium">87%</span>
+                                    </div>
+                                    <div class="h-2 bg-atlas-bg-tertiary rounded-full overflow-hidden">
+                                        <div class="progress-fill h-full bg-gradient-to-r from-atlas-gold to-atlas-gold-hover rounded-full" style="width: 87%"></div>
+                                    </div>
+                                </div>
+
+                                <button id="review-btn-1" class="w-full flex items-center justify-center gap-2 bg-atlas-bg-tertiary hover:bg-atlas-gold hover:text-atlas-bg-primary border border-atlas-border hover:border-atlas-gold text-atlas-text-primary font-medium py-2.5 rounded-lg transition-all">
+                                    <iconify-icon icon="lucide:brain"></iconify-icon>
+                                    Start Review
+                                </button>
+                            </div>
+
+                            <!-- Checkpoint Card 2 -->
+                            <div class="checkpoint-card bg-atlas-bg-secondary border border-atlas-border rounded-xl p-5 hover:border-atlas-gold/50 cursor-pointer group">
+                                <div class="flex items-start justify-between mb-4">
+                                    <div class="flex-1 min-w-0">
+                                        <h3 class="font-display font-semibold text-lg text-atlas-text-primary truncate group-hover:text-atlas-gold transition-colors">
+                                            Async/Await Patterns
+                                        </h3>
+                                        <p class="text-sm text-atlas-text-secondary mt-1 flex items-center gap-2">
+                                            <iconify-icon icon="lucide:map" class="text-atlas-text-muted"></iconify-icon>
+                                            JavaScript Mastery
+                                        </p>
+                                    </div>
+                                    <span class="difficulty-medium px-2.5 py-1 rounded-full text-xs font-medium bg-atlas-warning/10 text-atlas-warning border border-atlas-warning/20">
+                                        Medium
+                                    </span>
+                                </div>
+                                
+                                <div class="space-y-3 mb-5">
+                                    <div class="flex items-center justify-between text-sm">
+                                        <span class="text-atlas-text-muted">Last reviewed</span>
+                                        <span class="text-atlas-text-secondary">5 days ago</span>
+                                    </div>
+                                    <div class="flex items-center justify-between text-sm">
+                                        <span class="text-atlas-text-muted">Interval</span>
+                                        <span class="text-atlas-text-secondary">5 days → 12 days</span>
+                                    </div>
+                                </div>
+
+                                <div class="mb-4">
+                                    <div class="flex items-center justify-between text-xs mb-2">
+                                        <span class="text-atlas-text-muted">Retention Strength</span>
+                                        <span class="text-atlas-gold font-medium">72%</span>
+                                    </div>
+                                    <div class="h-2 bg-atlas-bg-tertiary rounded-full overflow-hidden">
+                                        <div class="progress-fill h-full bg-gradient-to-r from-atlas-gold to-atlas-gold-hover rounded-full" style="width: 72%"></div>
+                                    </div>
+                                </div>
+
+                                <button id="review-btn-2" class="w-full flex items-center justify-center gap-2 bg-atlas-bg-tertiary hover:bg-atlas-gold hover:text-atlas-bg-primary border border-atlas-border hover:border-atlas-gold text-atlas-text-primary font-medium py-2.5 rounded-lg transition-all">
+                                    <iconify-icon icon="lucide:brain"></iconify-icon>
+                                    Start Review
+                                </button>
+                            </div>
+
+                            <!-- Checkpoint Card 3 -->
+                            <div class="checkpoint-card bg-atlas-bg-secondary border border-atlas-border rounded-xl p-5 hover:border-atlas-gold/50 cursor-pointer group">
+                                <div class="flex items-start justify-between mb-4">
+                                    <div class="flex-1 min-w-0">
+                                        <h3 class="font-display font-semibold text-lg text-atlas-text-primary truncate group-hover:text-atlas-gold transition-colors">
+                                            Database Normalization
+                                        </h3>
+                                        <p class="text-sm text-atlas-text-secondary mt-1 flex items-center gap-2">
+                                            <iconify-icon icon="lucide:map" class="text-atlas-text-muted"></iconify-icon>
+                                            SQL Fundamentals
+                                        </p>
+                                    </div>
+                                    <span class="difficulty-hard px-2.5 py-1 rounded-full text-xs font-medium bg-atlas-error/10 text-atlas-error border border-atlas-error/20">
+                                        Hard
+                                    </span>
+                                </div>
+                                
+                                <div class="space-y-3 mb-5">
+                                    <div class="flex items-center justify-between text-sm">
+                                        <span class="text-atlas-text-muted">Last reviewed</span>
+                                        <span class="text-atlas-text-secondary">2 days ago</span>
+                                    </div>
+                                    <div class="flex items-center justify-between text-sm">
+                                        <span class="text-atlas-text-muted">Interval</span>
+                                        <span class="text-atlas-text-secondary">2 days → 4 days</span>
+                                    </div>
+                                </div>
+
+                                <div class="mb-4">
+                                    <div class="flex items-center justify-between text-xs mb-2">
+                                        <span class="text-atlas-text-muted">Retention Strength</span>
+                                        <span class="text-atlas-gold font-medium">45%</span>
+                                    </div>
+                                    <div class="h-2 bg-atlas-bg-tertiary rounded-full overflow-hidden">
+                                        <div class="progress-fill h-full bg-gradient-to-r from-atlas-gold to-atlas-gold-hover rounded-full" style="width: 45%"></div>
+                                    </div>
+                                </div>
+
+                                <button id="review-btn-3" class="w-full flex items-center justify-center gap-2 bg-atlas-bg-tertiary hover:bg-atlas-gold hover:text-atlas-bg-primary border border-atlas-border hover:border-atlas-gold text-atlas-text-primary font-medium py-2.5 rounded-lg transition-all">
+                                    <iconify-icon icon="lucide:brain"></iconify-icon>
+                                    Start Review
+                                </button>
+                            </div>
+
+                            <!-- Checkpoint Card 4 -->
+                            <div class="checkpoint-card bg-atlas-bg-secondary border border-atlas-border rounded-xl p-5 hover:border-atlas-gold/50 cursor-pointer group">
+                                <div class="flex items-start justify-between mb-4">
+                                    <div class="flex-1 min-w-0">
+                                        <h3 class="font-display font-semibold text-lg text-atlas-text-primary truncate group-hover:text-atlas-gold transition-colors">
+                                            CSS Grid Layouts
+                                        </h3>
+                                        <p class="text-sm text-atlas-text-secondary mt-1 flex items-center gap-2">
+                                            <iconify-icon icon="lucide:map" class="text-atlas-text-muted"></iconify-icon>
+                                            Modern CSS Techniques
+                                        </p>
+                                    </div>
+                                    <span class="difficulty-easy px-2.5 py-1 rounded-full text-xs font-medium bg-atlas-success/10 text-atlas-success border border-atlas-success/20">
+                                        Easy
+                                    </span>
+                                </div>
+                                
+                                <div class="space-y-3 mb-5">
+                                    <div class="flex items-center justify-between text-sm">
+                                        <span class="text-atlas-text-muted">Last reviewed</span>
+                                        <span class="text-atlas-text-secondary">1 week ago</span>
+                                    </div>
+                                    <div class="flex items-center justify-between text-sm">
+                                        <span class="text-atlas-text-muted">Interval</span>
+                                        <span class="text-atlas-text-secondary">7 days → 14 days</span>
+                                    </div>
+                                </div>
+
+                                <div class="mb-4">
+                                    <div class="flex items-center justify-between text-xs mb-2">
+                                        <span class="text-atlas-text-muted">Retention Strength</span>
+                                        <span class="text-atlas-gold font-medium">91%</span>
+                                    </div>
+                                    <div class="h-2 bg-atlas-bg-tertiary rounded-full overflow-hidden">
+                                        <div class="progress-fill h-full bg-gradient-to-r from-atlas-gold to-atlas-gold-hover rounded-full" style="width: 91%"></div>
+                                    </div>
+                                </div>
+
+                                <button id="review-btn-4" class="w-full flex items-center justify-center gap-2 bg-atlas-bg-tertiary hover:bg-atlas-gold hover:text-atlas-bg-primary border border-atlas-border hover:border-atlas-gold text-atlas-text-primary font-medium py-2.5 rounded-lg transition-all">
+                                    <iconify-icon icon="lucide:brain"></iconify-icon>
+                                    Start Review
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Upcoming Section -->
+                    <section>
+                        <div class="flex items-center gap-3 mb-6">
+                            <div class="w-10 h-10 rounded-xl bg-atlas-bg-tertiary flex items-center justify-center">
+                                <iconify-icon icon="lucide:calendar" class="text-atlas-text-secondary text-xl"></iconify-icon>
+                            </div>
+                            <div>
+                                <h2 class="font-display font-bold text-xl text-atlas-text-primary">Upcoming</h2>
+                                <p class="text-sm text-atlas-text-muted">Scheduled reviews for the next 7 days</p>
+                            </div>
+                        </div>
+
+                        <!-- Timeline/Upcoming Cards -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                            <!-- Upcoming Card 1 -->
+                            <div class="checkpoint-card bg-atlas-bg-secondary/50 border border-atlas-border rounded-xl p-5 opacity-75 hover:opacity-100 transition-all">
+                                <div class="flex items-start justify-between mb-4">
+                                    <div class="flex-1 min-w-0">
+                                        <h3 class="font-display font-semibold text-lg text-atlas-text-primary truncate">
+                                            TypeScript Generics
+                                        </h3>
+                                        <p class="text-sm text-atlas-text-secondary mt-1 flex items-center gap-2">
+                                            <iconify-icon icon="lucide:map" class="text-atlas-text-muted"></iconify-icon>
+                                            TypeScript Essentials
+                                        </p>
+                                    </div>
+                                    <span class="px-2.5 py-1 rounded-full text-xs font-medium bg-atlas-warning/10 text-atlas-warning border border-atlas-warning/20">
+                                        Medium
+                                    </span>
+                                </div>
+
+                                <div class="flex items-center gap-3 mb-4 p-3 bg-atlas-bg-tertiary/50 rounded-lg">
+                                    <iconify-icon icon="lucide:clock" class="text-atlas-gold"></iconify-icon>
+                                    <div>
+                                        <div class="text-sm font-medium text-atlas-text-primary">Due Tomorrow</div>
+                                        <div class="text-xs text-atlas-text-muted">Feb 14, 2026</div>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center justify-between text-sm">
+                                    <span class="text-atlas-text-muted">Last review: 4 days ago</span>
+                                    <span class="text-atlas-success font-medium">Strong retention</span>
+                                </div>
+                            </div>
+
+                            <!-- Upcoming Card 2 -->
+                            <div class="checkpoint-card bg-atlas-bg-secondary/50 border border-atlas-border rounded-xl p-5 opacity-75 hover:opacity-100 transition-all">
+                                <div class="flex items-start justify-between mb-4">
+                                    <div class="flex-1 min-w-0">
+                                        <h3 class="font-display font-semibold text-lg text-atlas-text-primary truncate">
+                                            REST API Design
+                                        </h3>
+                                        <p class="text-sm text-atlas-text-secondary mt-1 flex items-center gap-2">
+                                            <iconify-icon icon="lucide:map" class="text-atlas-text-muted"></iconify-icon>
+                                            Backend Architecture
+                                        </p>
+                                    </div>
+                                    <span class="px-2.5 py-1 rounded-full text-xs font-medium bg-atlas-success/10 text-atlas-success border border-atlas-success/20">
+                                        Easy
+                                    </span>
+                                </div>
+
+                                <div class="flex items-center gap-3 mb-4 p-3 bg-atlas-bg-tertiary/50 rounded-lg">
+                                    <iconify-icon icon="lucide:clock" class="text-atlas-gold"></iconify-icon>
+                                    <div>
+                                        <div class="text-sm font-medium text-atlas-text-primary">Due in 2 days</div>
+                                        <div class="text-xs text-atlas-text-muted">Feb 15, 2026</div>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center justify-between text-sm">
+                                    <span class="text-atlas-text-muted">Last review: 6 days ago</span>
+                                    <span class="text-atlas-success font-medium">Excellent retention</span>
+                                </div>
+                            </div>
+
+                            <!-- Upcoming Card 3 -->
+                            <div class="checkpoint-card bg-atlas-bg-secondary/50 border border-atlas-border rounded-xl p-5 opacity-75 hover:opacity-100 transition-all">
+                                <div class="flex items-start justify-between mb-4">
+                                    <div class="flex-1 min-w-0">
+                                        <h3 class="font-display font-semibold text-lg text-atlas-text-primary truncate">
+                                            Docker Containers
+                                        </h3>
+                                        <p class="text-sm text-atlas-text-secondary mt-1 flex items-center gap-2">
+                                            <iconify-icon icon="lucide:map" class="text-atlas-text-muted"></iconify-icon>
+                                            DevOps Fundamentals
+                                        </p>
+                                    </div>
+                                    <span class="px-2.5 py-1 rounded-full text-xs font-medium bg-atlas-error/10 text-atlas-error border border-atlas-error/20">
+                                        Hard
+                                    </span>
+                                </div>
+
+                                <div class="flex items-center gap-3 mb-4 p-3 bg-atlas-bg-tertiary/50 rounded-lg">
+                                    <iconify-icon icon="lucide:clock" class="text-atlas-gold"></iconify-icon>
+                                    <div>
+                                        <div class="text-sm font-medium text-atlas-text-primary">Due in 3 days</div>
+                                        <div class="text-xs text-atlas-text-muted">Feb 16, 2026</div>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center justify-between text-sm">
+                                    <span class="text-atlas-text-muted">Last review: 3 days ago</span>
+                                    <span class="text-atlas-warning font-medium">Needs attention</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Load More Button -->
+                        <div class="mt-6 text-center">
+                            <button id="load-more-btn" class="inline-flex items-center gap-2 text-atlas-text-secondary hover:text-atlas-gold transition-colors text-sm">
+                                <iconify-icon icon="lucide:chevron-down"></iconify-icon>
+                                Show 9 more upcoming checkpoints
+                            </button>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>
+
