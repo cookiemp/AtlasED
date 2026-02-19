@@ -31,8 +31,9 @@ export function AppHeader({ showBack = true, backLabel = "Back", backTo, title, 
       {/* Left: Logo and Navigation */}
       <div className="flex items-center gap-6">
         {/* Logo */}
-        <div
-          className="flex items-center gap-2.5 cursor-pointer"
+        <button
+          type="button"
+          className="flex items-center gap-2.5 cursor-pointer bg-transparent border-none p-0"
           onClick={() => navigate("/")}
         >
           <div className="w-8 h-8 rounded-lg bg-atlas-gold flex items-center justify-center">
@@ -41,7 +42,7 @@ export function AppHeader({ showBack = true, backLabel = "Back", backTo, title, 
           <span className="font-display font-bold text-lg tracking-tight text-atlas-text-primary">
             AtlasED
           </span>
-        </div>
+        </button>
 
         {/* Divider */}
         <div className="w-px h-6 bg-atlas-border" />

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useReducer } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Key, Eye, EyeOff, Check, AlertCircle, SlidersHorizontal,
@@ -9,13 +9,68 @@ import { cn } from "@/lib/utils";
 
 export default function Settings() {
   const navigate = useNavigate();
-  const [apiKey, setApiKey] = useState("");
-  const [showApiKey, setShowApiKey] = useState(false);
-  const [validationState, setValidationState] = useState<'idle' | 'success' | 'error'>('idle');
-  const [isValidating, setIsValidating] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [playbackSpeed, setPlaybackSpeed] = useState("1");
+
+  // ── Settings state via useReducer ──
+  type SettingsState = {
+    apiKey: string;
+    showApiKey: boolean;
+    validationState: 'idle' | 'success' | 'error';
+    isValidating: boolean;
+    isSaving: boolean;
+    isLoading: boolean;
+    playbackSpeed: string;
+  };
+
+  type SettingsAction =
+    | { type: 'SET_API_KEY'; value: string }
+    | { type: 'TOGGLE_SHOW_API_KEY' }
+    | { type: 'SET_VALIDATION'; state: 'idle' | 'success' | 'error' }
+    | { type: 'SET_VALIDATING'; value: boolean }
+    | { type: 'SET_SAVING'; value: boolean }
+    | { type: 'SET_LOADING'; value: boolean }
+    | { type: 'SET_PLAYBACK_SPEED'; value: string }
+    | { type: 'SETTINGS_LOADED'; apiKey?: string; playbackSpeed?: string };
+
+  const [state, dispatch] = useReducer(
+    (s: SettingsState, action: SettingsAction): SettingsState => {
+      switch (action.type) {
+        case 'SET_API_KEY':
+          return { ...s, apiKey: action.value, validationState: 'idle' };
+        case 'TOGGLE_SHOW_API_KEY':
+          return { ...s, showApiKey: !s.showApiKey };
+        case 'SET_VALIDATION':
+          return { ...s, validationState: action.state };
+        case 'SET_VALIDATING':
+          return { ...s, isValidating: action.value };
+        case 'SET_SAVING':
+          return { ...s, isSaving: action.value };
+        case 'SET_LOADING':
+          return { ...s, isLoading: action.value };
+        case 'SET_PLAYBACK_SPEED':
+          return { ...s, playbackSpeed: action.value };
+        case 'SETTINGS_LOADED':
+          return {
+            ...s,
+            isLoading: false,
+            apiKey: action.apiKey || s.apiKey,
+            playbackSpeed: action.playbackSpeed || s.playbackSpeed,
+          };
+        default:
+          return s;
+      }
+    },
+    {
+      apiKey: '',
+      showApiKey: false,
+      validationState: 'idle' as const,
+      isValidating: false,
+      isSaving: false,
+      isLoading: true,
+      playbackSpeed: '1',
+    }
+  );
+
+  const { apiKey, showApiKey, validationState, isValidating, isSaving, isLoading, playbackSpeed } = state;
 
   const [preferences, setPreferences] = useState({
     autoGenerateFieldGuides: true,
@@ -36,8 +91,11 @@ export default function Settings() {
             window.atlased.settings.get('srs_enabled'),
           ]);
 
-          if (geminiKey) setApiKey(geminiKey);
-          if (speed) setPlaybackSpeed(String(speed));
+          dispatch({
+            type: 'SETTINGS_LOADED',
+            apiKey: geminiKey || undefined,
+            playbackSpeed: speed ? String(speed) : undefined,
+          });
 
           setPreferences(prev => ({
             ...prev,
@@ -45,11 +103,12 @@ export default function Settings() {
             showComprehensionQuizzes: autoQuiz ?? true,
             enableSpacedRepetition: srsEnabled ?? true,
           }));
+        } else {
+          dispatch({ type: 'SET_LOADING', value: false });
         }
       } catch (error) {
         console.error("Error loading settings:", error);
-      } finally {
-        setIsLoading(false);
+        dispatch({ type: 'SET_LOADING', value: false });
       }
     }
     loadSettings();
@@ -57,30 +116,26 @@ export default function Settings() {
 
   const handleValidate = async () => {
     if (!apiKey) {
-      setValidationState('error');
+      dispatch({ type: 'SET_VALIDATION', state: 'error' });
       return;
     }
 
-    setIsValidating(true);
+    dispatch({ type: 'SET_VALIDATING', value: true });
     try {
       if (window.atlased) {
         const result = await window.atlased.ai.validateApiKey(apiKey);
-        if (result.valid) {
-          setValidationState('success');
-        } else {
-          setValidationState('error');
-        }
+        dispatch({ type: 'SET_VALIDATION', state: result.valid ? 'success' : 'error' });
       }
     } catch (error) {
       console.error("API key validation error:", error);
-      setValidationState('error');
+      dispatch({ type: 'SET_VALIDATION', state: 'error' });
     } finally {
-      setIsValidating(false);
+      dispatch({ type: 'SET_VALIDATING', value: false });
     }
   };
 
   const handleSave = async () => {
-    setIsSaving(true);
+    dispatch({ type: 'SET_SAVING', value: true });
     try {
       if (window.atlased) {
         await Promise.all([
@@ -93,7 +148,7 @@ export default function Settings() {
     } catch (error) {
       console.error("Error saving settings:", error);
     } finally {
-      setIsSaving(false);
+      dispatch({ type: 'SET_SAVING', value: false });
     }
   };
 
@@ -141,23 +196,23 @@ export default function Settings() {
             </div>
             <div className="p-6 space-y-5">
               <div>
-                <label className="block text-atlas-text-secondary text-sm uppercase tracking-wide font-medium mb-3">
+                <label htmlFor="gemini-api-key" className="block text-atlas-text-secondary text-sm uppercase tracking-wide font-medium mb-3">
                   Gemini API Key
                 </label>
                 <div className="relative">
                   <input
+                    id="gemini-api-key"
                     type={showApiKey ? "text" : "password"}
                     value={apiKey}
                     onChange={(e) => {
-                      setApiKey(e.target.value);
-                      setValidationState('idle');
+                      dispatch({ type: 'SET_API_KEY', value: e.target.value });
                     }}
                     placeholder="Enter your Gemini API key"
                     className="w-full bg-atlas-bg-tertiary border border-atlas-border rounded-xl px-4 py-3.5 pr-24 text-atlas-text-primary placeholder-atlas-text-muted focus:outline-none focus:border-atlas-gold/50 input-glow transition-all duration-200 font-mono text-sm"
                   />
                   <button
                     type="button"
-                    onClick={() => setShowApiKey(!showApiKey)}
+                    onClick={() => dispatch({ type: 'TOGGLE_SHOW_API_KEY' })}
                     className="absolute right-14 top-1/2 -translate-y-1/2 p-2 text-atlas-text-muted hover:text-atlas-text-primary transition-colors"
                   >
                     {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -263,7 +318,7 @@ export default function Settings() {
                   <button
                     key={speed}
                     type="button"
-                    onClick={() => setPlaybackSpeed(speed)}
+                    onClick={() => dispatch({ type: 'SET_PLAYBACK_SPEED', value: speed })}
                     className={cn(
                       "flex flex-col items-center justify-center py-4 px-4 rounded-xl transition-all duration-200",
                       playbackSpeed === speed
@@ -328,10 +383,10 @@ export default function Settings() {
                 <ChevronRight className="w-5 h-5 text-atlas-text-muted" />
               </button>
 
-              <a href="#" className="flex items-center justify-center gap-2 py-3 text-atlas-text-secondary hover:text-atlas-gold transition-colors text-sm">
+              <button type="button" className="flex items-center justify-center gap-2 py-3 text-atlas-text-secondary hover:text-atlas-gold transition-colors text-sm w-full">
                 <FileText className="w-4 h-4" />
                 <span>View Privacy Policy</span>
-              </a>
+              </button>
             </div>
           </section>
 
@@ -361,9 +416,9 @@ export default function Settings() {
           <div className="flex items-center justify-between text-atlas-text-muted text-sm">
             <p>AtlasED v1.0.0</p>
             <div className="flex items-center gap-4">
-              <a href="#" className="hover:text-atlas-gold transition-colors">Documentation</a>
-              <a href="#" className="hover:text-atlas-gold transition-colors">Support</a>
-              <a href="#" className="hover:text-atlas-gold transition-colors">GitHub</a>
+              <button type="button" className="hover:text-atlas-gold transition-colors">Documentation</button>
+              <button type="button" className="hover:text-atlas-gold transition-colors">Support</button>
+              <button type="button" className="hover:text-atlas-gold transition-colors">GitHub</button>
             </div>
           </div>
         </footer>

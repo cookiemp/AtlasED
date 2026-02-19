@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft, Settings, Play, Pause, Volume2, Maximize,
@@ -12,7 +12,7 @@ import { QuizModal, type QuizQuestion } from "@/components/modals/QuizModal";
 
 type TabType = 'field-guide' | 'notes' | 'chart' | 'compass-ai';
 
-// Simple markdown renderer for chat messages
+// Simple, safe markdown renderer for chat messages
 function renderMarkdown(text: string) {
   // Split by code blocks first
   const parts = text.split(/(```[\s\S]*?```)/g);
@@ -24,7 +24,7 @@ function renderMarkdown(text: string) {
       const language = lines[0]?.trim() || '';
       const code = lines.slice(language ? 1 : 0).join('\n');
       return (
-        <div key={i} className="my-2 rounded-lg overflow-hidden">
+        <div key={`code-${i}`} className="my-2 rounded-lg overflow-hidden">
           {language && (
             <div className="bg-atlas-bg-tertiary px-3 py-1 text-xs text-atlas-text-muted uppercase">
               {language}
@@ -37,24 +37,75 @@ function renderMarkdown(text: string) {
       );
     }
 
-    // Regular text — process inline markdown
+    // Regular text — process inline markdown safely
     const lines = part.split('\n');
     return (
-      <span key={i}>
+      <span key={`text-${i}`}>
         {lines.map((line, j) => {
-          // Process bold, italic, inline code
-          const processed = line
-            .replace(/\*\*(.+?)\*\*/g, '<strong class="text-atlas-text-primary font-semibold">$1</strong>')
-            .replace(/\*(.+?)\*/g, '<em>$1</em>')
-            .replace(/`([^`]+)`/g, '<code class="bg-atlas-bg-tertiary px-1.5 py-0.5 rounded text-xs font-mono text-atlas-gold">$1</code>');
+          // Safely render inline formatting as React elements
+          const renderInline = (text: string): React.ReactNode[] => {
+            const nodes: React.ReactNode[] = [];
+            let remaining = text;
+            let nodeIdx = 0;
+
+            while (remaining.length > 0) {
+              // Bold
+              const boldMatch = remaining.match(/\*\*(.+?)\*\*/);
+              // Inline code
+              const codeMatch = remaining.match(/`([^`]+)`/);
+              // Italic
+              const italicMatch = remaining.match(/\*(.+?)\*/);
+
+              // Find the earliest match
+              const matches = [
+                boldMatch ? { type: 'bold', match: boldMatch } : null,
+                codeMatch ? { type: 'code', match: codeMatch } : null,
+                italicMatch ? { type: 'italic', match: italicMatch } : null,
+              ].filter(Boolean).sort((a, b) => (a!.match.index ?? 0) - (b!.match.index ?? 0));
+
+              if (matches.length === 0 || matches[0]!.match.index === undefined) {
+                nodes.push(remaining);
+                break;
+              }
+
+              const earliest = matches[0]!;
+              const idx = earliest.match.index!;
+
+              if (idx > 0) {
+                nodes.push(remaining.slice(0, idx));
+              }
+
+              if (earliest.type === 'bold') {
+                nodes.push(
+                  <strong key={`b-${nodeIdx++}`} className="text-atlas-text-primary font-semibold">
+                    {earliest.match[1]}
+                  </strong>
+                );
+              } else if (earliest.type === 'code') {
+                nodes.push(
+                  <code key={`c-${nodeIdx++}`} className="bg-atlas-bg-tertiary px-1.5 py-0.5 rounded text-xs font-mono text-atlas-gold">
+                    {earliest.match[1]}
+                  </code>
+                );
+              } else if (earliest.type === 'italic') {
+                nodes.push(
+                  <em key={`i-${nodeIdx++}`}>{earliest.match[1]}</em>
+                );
+              }
+
+              remaining = remaining.slice(idx + earliest.match[0].length);
+            }
+
+            return nodes;
+          };
 
           // Bullet points
           const isBullet = line.match(/^\s*[-*•]\s+(.*)/);
           if (isBullet) {
             return (
-              <span key={j} className="flex items-start gap-2 my-0.5">
+              <span key={`line-${j}`} className="flex items-start gap-2 my-0.5">
                 <span className="text-atlas-gold mt-0">•</span>
-                <span dangerouslySetInnerHTML={{ __html: processed.replace(/^\s*[-*•]\s+/, '') }} />
+                <span>{renderInline(isBullet[1])}</span>
               </span>
             );
           }
@@ -63,16 +114,16 @@ function renderMarkdown(text: string) {
           const isNumbered = line.match(/^\s*(\d+)\.\s+(.*)/);
           if (isNumbered) {
             return (
-              <span key={j} className="flex items-start gap-2 my-0.5">
+              <span key={`line-${j}`} className="flex items-start gap-2 my-0.5">
                 <span className="text-atlas-gold font-medium text-xs min-w-[1rem]">{isNumbered[1]}.</span>
-                <span dangerouslySetInnerHTML={{ __html: processed.replace(/^\s*\d+\.\s+/, '') }} />
+                <span>{renderInline(isNumbered[2])}</span>
               </span>
             );
           }
 
           return (
-            <span key={j}>
-              <span dangerouslySetInnerHTML={{ __html: processed }} />
+            <span key={`line-${j}`}>
+              <span>{renderInline(line)}</span>
               {j < lines.length - 1 && <br />}
             </span>
           );
@@ -649,6 +700,15 @@ export default function VideoPlayer() {
               <div
                 className="absolute inset-0 z-10 flex items-center justify-center cursor-pointer"
                 onClick={handleResumePlayback}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleResumePlayback();
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                aria-label={videoState === 0 ? "Replay video" : "Resume video"}
               >
                 {/* Semi-transparent bottom overlay to cover recommendations */}
                 <div className="absolute bottom-0 left-0 right-0 h-[30%] bg-gradient-to-t from-black/90 via-black/60 to-transparent" />
@@ -841,10 +901,10 @@ export default function VideoPlayer() {
                         Key Concepts
                       </h3>
                       <ul className="space-y-3">
-                        {fieldGuide.key_concepts.map((concept, index) => (
-                          <li key={index} className="flex items-start gap-3 text-sm">
+                        {fieldGuide.key_concepts.map((concept) => (
+                          <li key={concept.title} className="flex items-start gap-3 text-sm">
                             <span className="w-5 h-5 rounded bg-atlas-gold/10 border border-atlas-gold/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                              <span className="text-atlas-gold text-xs font-bold">{index + 1}</span>
+                              <span className="text-atlas-gold text-xs font-bold">{fieldGuide.key_concepts.indexOf(concept) + 1}</span>
                             </span>
                             <div>
                               <p className="text-atlas-text-primary font-medium">{concept.title}</p>
@@ -863,8 +923,8 @@ export default function VideoPlayer() {
                         <Code2 className="w-5 h-5 text-atlas-gold" />
                         Code Examples
                       </h3>
-                      {fieldGuide.code_examples.map((example, index) => (
-                        <div key={index} className="mb-4">
+                      {fieldGuide.code_examples.map((example) => (
+                        <div key={`${example.language}-${example.code.slice(0, 30)}`} className="mb-4">
                           <div className="code-block rounded-lg p-4 overflow-x-auto">
                             <div className="flex items-center justify-between mb-2">
                               <span className="text-xs text-atlas-text-muted uppercase">{example.language}</span>
@@ -889,8 +949,8 @@ export default function VideoPlayer() {
                         <div>
                           <h4 className="font-bold text-atlas-text-primary text-sm mb-2">Key Takeaways</h4>
                           <ul className="space-y-1">
-                            {fieldGuide.key_takeaways.map((takeaway, index) => (
-                              <li key={index} className="text-sm text-atlas-text-secondary flex items-start gap-2">
+                            {fieldGuide.key_takeaways.map((takeaway) => (
+                              <li key={takeaway.slice(0, 50)} className="text-sm text-atlas-text-secondary flex items-start gap-2">
                                 <span className="text-atlas-gold mt-1">•</span>
                                 <span>{takeaway}</span>
                               </li>
@@ -940,7 +1000,7 @@ export default function VideoPlayer() {
               {/* Chat Messages */}
               <div className="flex-1 overflow-auto p-6 space-y-4">
                 {chatMessages.map((msg, index) => (
-                  <div key={index} className={cn(
+                  <div key={`${msg.type}-${index}-${msg.content.slice(0, 20)}`} className={cn(
                     "flex gap-3",
                     msg.type === 'user' && "justify-end"
                   )}>

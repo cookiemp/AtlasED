@@ -304,6 +304,14 @@ export default function ExpeditionView() {
                 <div
                   key={waypoint.id}
                   onClick={() => navigate(`/player/${waypoint.id}`)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      navigate(`/player/${waypoint.id}`);
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
                   className={cn(
                     "waypoint-row grid grid-cols-12 gap-4 px-6 py-4 items-center cursor-pointer group",
                     waypoint.status === 'in-progress' && "bg-atlas-bg-tertiary/30 border-l-2 border-atlas-gold",

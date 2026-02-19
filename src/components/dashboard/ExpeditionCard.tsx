@@ -12,6 +12,14 @@ export function ExpeditionCard({ expedition, onClick, onDelete }: ExpeditionCard
   return (
     <div
       onClick={onClick}
+      role="button"
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={(e) => {
+        if (onClick && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault();
+          onClick();
+        }
+      }}
       className="group relative bg-atlas-bg-secondary rounded-2xl border border-atlas-border overflow-hidden hover:border-atlas-gold/40 transition-all duration-300 hover:shadow-lg hover:shadow-atlas-gold/5 hover:-translate-y-1 cursor-pointer"
     >
       {/* Delete Button */}

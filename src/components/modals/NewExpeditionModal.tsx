@@ -127,7 +127,7 @@ export function NewExpeditionModal({ isOpen, onClose, onSubmit }: NewExpeditionM
         <div className="px-8 py-6 flex-1 overflow-y-auto modal-scrollbar">
           {/* YouTube URL Input */}
           <div className="space-y-2 mb-5">
-            <label className="block text-sm font-medium text-atlas-text-secondary">
+            <label htmlFor="playlist-url" className="block text-sm font-medium text-atlas-text-secondary">
               YouTube Playlist URL <span className="text-atlas-gold">*</span>
             </label>
             <div className="relative">
@@ -135,6 +135,7 @@ export function NewExpeditionModal({ isOpen, onClose, onSubmit }: NewExpeditionM
                 <Link className="w-[18px] h-[18px]" />
               </div>
               <input
+                id="playlist-url"
                 type="text"
                 value={playlistUrl}
                 onChange={(e) => handleUrlChange(e.target.value)}
@@ -158,7 +159,7 @@ export function NewExpeditionModal({ isOpen, onClose, onSubmit }: NewExpeditionM
 
           {/* Expedition Name Input */}
           <div className="space-y-2 mb-6">
-            <label className="block text-sm font-medium text-atlas-text-secondary">
+            <label htmlFor="expedition-name" className="block text-sm font-medium text-atlas-text-secondary">
               Expedition Name <span className="text-atlas-text-muted font-normal">(optional)</span>
             </label>
             <div className="relative">
@@ -166,6 +167,7 @@ export function NewExpeditionModal({ isOpen, onClose, onSubmit }: NewExpeditionM
                 <Type className="w-[18px] h-[18px]" />
               </div>
               <input
+                id="expedition-name"
                 type="text"
                 value={expeditionName}
                 onChange={(e) => setExpeditionName(e.target.value)}

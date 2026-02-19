@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useReducer } from "react";
 import { useNavigate } from "react-router-dom";
 import * as d3 from "d3";
 import {
@@ -64,9 +64,36 @@ export default function KnowledgeGraph() {
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [showLegend, setShowLegend] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(100);
-  const [isLoading, setIsLoading] = useState(true);
-  const [graphNodes, setGraphNodes] = useState<GraphNode[]>([]);
-  const [graphLinks, setGraphLinks] = useState<GraphLink[]>([]);
+
+  // Batch graph data state to avoid multiple re-renders
+  type GraphState = {
+    isLoading: boolean;
+    graphNodes: GraphNode[];
+    graphLinks: GraphLink[];
+  };
+  type GraphAction =
+    | { type: 'LOADING' }
+    | { type: 'LOADED'; nodes: GraphNode[]; links: GraphLink[] }
+    | { type: 'ERROR' };
+
+  const [graphState, dispatchGraph] = useReducer(
+    (state: GraphState, action: GraphAction): GraphState => {
+      switch (action.type) {
+        case 'LOADING':
+          return { ...state, isLoading: true };
+        case 'LOADED':
+          return { isLoading: false, graphNodes: action.nodes, graphLinks: action.links };
+        case 'ERROR':
+          return { ...state, isLoading: false };
+        default:
+          return state;
+      }
+    },
+    { isLoading: true, graphNodes: [], graphLinks: [] }
+  );
+
+  const { isLoading, graphNodes, graphLinks } = graphState;
+
   const [filters, setFilters] = useState({
     fundamentals: true,
     advanced: true,
@@ -77,7 +104,7 @@ export default function KnowledgeGraph() {
   // Load real data from database
   const loadGraphData = useCallback(async () => {
     if (!window.atlased) return;
-    setIsLoading(true);
+    dispatchGraph({ type: 'LOADING' });
     try {
       const data = await window.atlased.knowledgeGraph.getData();
 
@@ -131,12 +158,10 @@ export default function KnowledgeGraph() {
         }
       }
 
-      setGraphNodes(nodes);
-      setGraphLinks(links);
+      dispatchGraph({ type: 'LOADED', nodes, links });
     } catch (error) {
       console.error('Failed to load knowledge graph data:', error);
-    } finally {
-      setIsLoading(false);
+      dispatchGraph({ type: 'ERROR' });
     }
   }, []);
 
@@ -572,8 +597,8 @@ export default function KnowledgeGraph() {
                 <h2 className="font-display font-bold text-xl text-atlas-text-primary leading-tight mb-2">{selectedNode.name}</h2>
                 {selectedNode.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mt-2">
-                    {selectedNode.tags.map((tag, i) => (
-                      <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-atlas-gold/10 text-atlas-gold border border-atlas-gold/20">
+                    {selectedNode.tags.map((tag) => (
+                      <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full bg-atlas-gold/10 text-atlas-gold border border-atlas-gold/20">
                         {tag}
                       </span>
                     ))}
@@ -602,8 +627,8 @@ export default function KnowledgeGraph() {
                       Key Takeaways
                     </h3>
                     <ul className="space-y-2">
-                      {selectedNode.keypoints.slice(0, 5).map((point, index) => (
-                        <li key={index} className="flex items-start gap-2 text-sm">
+                      {selectedNode.keypoints.slice(0, 5).map((point) => (
+                        <li key={point.slice(0, 60)} className="flex items-start gap-2 text-sm">
                           <span className="text-atlas-gold mt-1.5">•</span>
                           <span className="font-body text-atlas-text-secondary">{point}</span>
                         </li>

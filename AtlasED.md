@@ -326,6 +326,9 @@ Analyze these video transcripts from a learning playlist and identify conceptual
 
 # 🗓️ Step-by-Step Implementation Plan
 
+**Last Updated:** 2026-02-17  
+**Overall Progress:** ~65% of core vision complete
+
 ### **Phase 1: The "Skeleton" (Days 1-3)** ✅ COMPLETE
 - [x] **Set up Electron + React + Vite.**
 - [x] **Settings Page:** Implement API Key storage (Local).
@@ -333,31 +336,115 @@ Analyze these video transcripts from a learning playlist and identify conceptual
 - [x] **The Player:** Functional video player with "resume from last position" logic.
 
 ### **Phase 2: The "Brain" (Days 4-7)** ✅ COMPLETE
-- [x] **Transcript Scraper:** Integrate `youtube-transcript`.
+- [x] **Transcript Scraper:** Integrate `youtube-transcript` (Python-based).
 - [x] **AI Integration:** Send transcript to Gemini for Field Guide generation.
 - [x] **UI:** Render Markdown summaries and key concepts under the video.
+- [x] **Compass AI Chat:** Context-aware AI chat sidebar for asking questions about the video.
+- [x] **Notes Tab:** Per-waypoint personal notes with 1s debounce auto-save.
+- [x] **Chart Tab:** Navigable waypoint list with status indicators (Charted/In Progress/Not Started).
 
-### **Phase 3: The "Tutor" (Days 8-14)** ⏳ PENDING
-- [ ] **Quiz Generation:** AI extracts timestamps and multiple-choice questions.
-- [ ] **Interactive Overlay:** Pause video and show quiz UI at the right time.
-- [ ] **Scoring:** Save results to `QuizAttempts`.
+### **Phase 3: The "Tutor" (Days 8-14)** 🔴 IN PROGRESS
+*The core differentiator — active learning through mid-video quizzes.*
+- [x] **Quiz Generation Backend:** `generateQuizzes()` in Gemini service extracts timestamps + multiple-choice questions.
+- [x] **QuizModal Component:** UI overlay for answering quiz questions.
+- [x] **Quiz Attempt Storage:** `createQuizAttempt` IPC and database table working.
+- [ ] **🔴 Mid-Stream Auto-Pause:** Monitor YouTube iframe playback time and automatically pause at AI-determined timestamps.
+- [ ] **🔴 Timed Quiz Trigger:** Wire up the auto-pause to open the QuizModal overlay at the right moment.
+- [ ] **🔴 Quiz Flow Integration:** After answering, resume playback. Track per-waypoint quiz completion state.
 
-### **Phase 4: The "Atlas" & Polish (Days 15-20)** ⏳ PENDING
-- [ ] **Knowledge Graph:** Implement `react-force-graph` using Waypoint tags.
+### **Phase 4: The "Atlas" & Polish (Days 15-20)** 🟡 MOSTLY COMPLETE
+- [x] **Knowledge Graph:** D3-powered force graph with real data, tag-based connections, filtering, node interactions, sidebar details.
+- [x] **Tag Persistence:** Tags from `key_concepts` saved during field guide generation + backfill for existing field guides.
+- [x] **UI Refinement:** Warm dark theme with gold accents (Inter, Merriweather, JetBrains Mono fonts). Glassmorphism intentionally removed.
 - [ ] **PDF Export:** Export Field Guides for offline study.
 - [ ] **Global Search:** Search through all generated Field Guides.
-- [x] **UI Refinement:** Animations and premium styling. *(Warm dark theme adopted, glassmorphism intentionally removed)*
-- [ ] **Keyboard shortcuts:** `Space`=Pause, `Q`=Quiz.
+- [ ] **Keyboard shortcuts:** `Space`=Pause, `Q`=Quiz, `Ctrl+K`=Search.
+- [ ] **Knowledge Graph — Expedition Grouping:** Visual clustering of nodes by expedition (convex hulls, colored regions).
 
-### **Phase 5: The "Guardian" (Days 21+)** ⏳ PENDING
-- [ ] **SRS Logic:** Dashboard widget for "Due for Review."
-- [ ] **Analytics:** Simple charts showing learning progress and retention stats.
+### **Phase 5: The "Guardian" (Days 21+)** 🟡 PARTIALLY COMPLETE
+- [x] **SRS Algorithm:** SM-2 style with interval ladder (1d → 3d → 7d → 14d → 30d → 60d → 120d).
+- [x] **Memory Checkpoints Page:** Full UI with loading/empty states, filter/sort, retention bars, accuracy stats.
+- [x] **Navigation:** "Memory" button in AppHeader for quick access.
+- [ ] **🟡 Dashboard "Reviews Due" Widget:** Show due-for-review checkpoints on the main dashboard.
+- [ ] **🟡 Analytics Dashboard:** Learning progress charts, retention curves, study streaks (Recharts already installed).
+
+---
+
+### **Phase 6: The "Navigator" (New Features — High Impact)** ⏳ PLANNED
+*Features that would significantly elevate the user experience.*
+
+- [ ] **🔖 Timestamp Bookmarks**
+  - "Save this moment" button in the video player.
+  - New `bookmarks` table: `(id, waypoint_id, timestamp_seconds, note, created_at)`.
+  - Bookmarks appear in the Chart tab and are clickable to jump to that moment.
+  - *Why:* Users constantly want to "come back to that part."
+
+- [ ] **📊 Learning Analytics Dashboard**
+  - Weekly/monthly study streak counter with motivational gamification.
+  - Time-spent-learning chart (per expedition and overall).
+  - Retention curve visualization (how much you've retained over time).
+  - "You're on a 5-day streak!" badges and indicators.
+  - *Why:* This is what separates a tool from a habit. Duolingo proved this.
+
+- [ ] **🔍 Global Search (`Ctrl+K`)**
+  - Command palette-style search across all Field Guides, notes, and expedition titles.
+  - Full-text search with highlighted results and jump-to navigation.
+  - *Why:* Once users have 10+ expeditions, finding things becomes critical.
+
+- [ ] **📋 Flashcard Mode**
+  - Repurpose existing quiz data into a swipe-through flashcard interface.
+  - Great for quick review sessions without re-watching videos.
+  - Integrates with SRS — flashcards appear when a Memory Checkpoint is due.
+  - *Why:* Quiz data already exists. Low-effort, high-value repurpose.
+
+- [ ] **🎯 Focus Mode / Pomodoro Timer**
+  - Built-in study timer that integrates with the video player.
+  - "Study for 25 min → 5 min break" with auto-pause.
+  - Session history tracked for analytics.
+  - *Why:* Learning apps that respect your time build loyalty.
+
+### **Phase 7: Quality & Polish** ⏳ PLANNED
+*Code quality, UX improvements, and maintainability.*
+
+- [ ] **🏗️ Decompose `VideoPlayer.tsx`** — Currently 1,134 lines. Split into `FieldGuideTab`, `NotesTab`, `ChartTab`, `CompassAITab` sub-components.
+- [ ] **🧪 Integration Tests** — IPC handler tests, database query tests, AI service error handling tests, component rendering tests.
+- [ ] **⚡ Optimize N+1 Query** — `getMemoryCheckpoints()` runs N separate queries. Batch into a single query.
+- [ ] **🔒 Gemini Rate Limiting** — Client-side throttling to prevent accidental API quota burns.
+- [ ] **♿ Accessibility** — Keyboard navigation in player sidebar, `aria-` labels, focus management.
+- [ ] **📱 Error Recovery** — "Retry" button on Gemini failures instead of just error text. Per-route error boundaries.
+- [ ] **🧹 Cleanup** — Delete `src_old/`, remove placeholder `example.test.ts`, remove unused `youtube_api_key` from store schema.
+- [ ] **🌐 Offline Handling** — Detect network state, show offline banner, disable AI features, queue pending tasks.
+- [ ] **💡 Onboarding Flow** — First-time users see a guided tutorial instead of an empty dashboard.
+
+### **Phase 8: The "Voyager" (Future Vision)** ⏳ FUTURE
+*Longer-term ideas that would make AtlasED truly special.*
+
+- [ ] **📤 Export / Import Study Packages**
+  - Export an expedition's complete study package (Field Guides + Notes + Quiz results) as PDF or Markdown zip.
+  - Import packages shared by other users.
+  - *Why:* Students share notes. Making this easy makes the app viral.
+
+- [ ] **🌙 Auto-Generated Study Plans**
+  - Based on expedition size and user's pace, suggest a daily study schedule.
+  - "You have 24 waypoints. At 2/day, you'll finish in 12 days."
+  - Daily study reminders on the dashboard.
+  - *Why:* Structured pacing prevents binge-then-forget behavior.
+
+- [ ] **🏷️ Custom Tags / Folders for Expeditions**
+  - Organize expeditions by subject: "Python", "Math", "Music Theory".
+  - Filterable dashboard with categories.
+
+- [ ] **🔄 Drag-and-Drop Waypoint Reordering** in ExpeditionView.
+- [ ] **🌓 Dark/Light Theme Toggle** — Schema supports it, UI just needs the switch.
+- [ ] **⏩ Playback Speed Presets** — 1x, 1.25x, 1.5x, 2x visible in the player UI.
+- [ ] **▶️ "Continue Learning" Button** on dashboard — jumps straight to where you left off.
+- [ ] **📦 Bulk Field Guide Generation** — "Generate All" button to process an entire playlist's field guides in sequence.
 
 ---
 
 ### **Additional Completed Work:**
 - [x] Custom frameless window with TitleBar component
-- [x] SQLite database with all tables (expeditions, waypoints, field_guides, tags, waypoint_tags, quiz_attempts)
+- [x] SQLite database with all 7 tables (expeditions, waypoints, field_guides, tags, waypoint_tags, quiz_attempts, notes)
 - [x] IPC handlers for all CRUD operations
 - [x] Encrypted settings storage via electron-store
 - [x] New 3-column "Cockpit" VideoPlayer layout (Module Map, Viewport, Compass AI sidebar)
@@ -366,3 +453,55 @@ Analyze these video transcripts from a learning playlist and identify conceptual
 - [x] NewExpeditionModal for creating expeditions from YouTube playlists
 - [x] ApiKeyModal for first-run Gemini API key setup
 - [x] Warm dark theme with gold accents (Inter, Merriweather, JetBrains Mono fonts)
+- [x] 50 Vitest tests across 4 test files (SRS algorithm, knowledge graph, tag persistence)
+- [x] Knowledge Graph wired to real data with tag-based connections
+- [x] Memory Checkpoints with SM-2 SRS algorithm
+- [x] Comprehensive code review and security audit (all P0/P1 issues resolved)
+
+---
+
+# 🎯 Prioritized Next Steps
+
+**Immediate (Next Sprint):**
+1. **🔴 Mid-stream quiz system** — Wire up iframe time monitoring + auto-pause + QuizModal trigger. This is the #1 core differentiator.
+2. **🟡 Dashboard "Reviews Due" widget** — Low effort, high visibility. SRS data already exists.
+3. **🟡 Decompose `VideoPlayer.tsx`** — At 1,134 lines, becoming unmaintainable.
+
+**Short Term:**
+4. **🔖 Timestamp bookmarks** — Simple DB table + small UI, huge user value.
+5. **🔍 Global search (`Ctrl+K`)** — Essential once content grows.
+6. **📊 Learning analytics** — Study streaks, time tracking, progress charts.
+
+**Backlog:**
+7. Flashcard mode from quiz data
+8. PDF/Markdown export
+9. Focus mode / Pomodoro timer
+10. Onboarding flow for new users
+
+---
+
+# 🔧 Known Areas of Improvement
+
+### Code Quality
+| Issue | Severity | Notes |
+|---|---|---|
+| `VideoPlayer.tsx` is 1,134 lines | ⚠️ Medium | Decompose into sub-components |
+| N+1 query in `getMemoryCheckpoints()` | ⚠️ Medium | Batch into single query |
+| No integration tests | ⚠️ Medium | Need IPC, DB, and component tests |
+| No Gemini rate limiting | 🟡 Low | Users can spam "Generate" |
+| `QueryClient` not memoized | 🟡 Low | Dev-only hot reload issue |
+| Legacy `src_old/` directory | 🟡 Low | Should be deleted |
+| Unused `youtube_api_key` in store schema | 🟡 Low | Dead code |
+
+### UX Gaps
+| Area | Issue | Suggestion |
+|---|---|---|
+| Dashboard | No "due for review" indication | Add Reviews Due card |
+| Video Player | No loading skeleton | Add shimmer/skeleton states |
+| Video Player | No error recovery for Gemini failures | Add "Retry" button |
+| Expedition View | No bulk actions | "Generate All Field Guides" button |
+| Knowledge Graph | No expedition-level grouping | Cluster nodes by expedition |
+| First-time experience | Empty dashboard, no guidance | Add onboarding flow |
+| Offline | No offline indicator | Show banner, disable AI features |
+| Accessibility | No keyboard navigation in sidebar | Add Tab key nav + aria labels |
+

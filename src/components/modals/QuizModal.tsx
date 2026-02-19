@@ -141,7 +141,7 @@ export function QuizModal({ isOpen, onClose, onComplete, questions, waypointTitl
 
               return (
                 <button
-                  key={index}
+                  key={`${optionLabels[index]}-${optionText.slice(0, 30)}`}
                   onClick={() => handleSelectOption(index)}
                   disabled={answered}
                   className={cn(
