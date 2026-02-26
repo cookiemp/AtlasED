@@ -7,6 +7,7 @@ import {
   Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { WindowControls } from "@/components/WindowControls";
 
 // ── Types for graph data ──
 
@@ -358,8 +359,8 @@ export default function KnowledgeGraph() {
   return (
     <div className="h-screen bg-atlas-bg-primary flex flex-col overflow-hidden">
       {/* Title Bar */}
-      <header className="h-14 bg-atlas-bg-secondary border-b border-atlas-border flex items-center px-4 shrink-0">
-        <div className="flex items-center gap-3">
+      <header className="h-14 bg-atlas-bg-secondary border-b border-atlas-border flex items-center pl-4 pr-0 shrink-0 select-none" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties} data-window-drag>
+        <div className="flex items-center gap-3" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
           {/* Logo */}
           <div className="w-8 h-8 rounded-lg bg-atlas-gold flex items-center justify-center">
             <Network className="w-[18px] h-[18px] text-atlas-bg-primary" />
@@ -383,7 +384,7 @@ export default function KnowledgeGraph() {
         </div>
 
         {/* Right Side */}
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-3" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
           <button
             onClick={() => setShowLegend(!showLegend)}
             className={cn(
@@ -403,6 +404,12 @@ export default function KnowledgeGraph() {
           >
             <Maximize className="w-[18px] h-[18px] text-atlas-text-secondary" />
           </button>
+
+          {/* Divider before window controls */}
+          <div className="w-px h-6 bg-atlas-border ml-1" />
+
+          {/* Window Controls */}
+          <WindowControls />
         </div>
       </header>
 

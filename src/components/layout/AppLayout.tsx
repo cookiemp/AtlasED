@@ -15,16 +15,16 @@ interface AppLayoutProps {
   };
 }
 
-export function AppLayout({ 
-  children, 
-  showHeader = true, 
-  showFooter = true,
-  headerProps 
+export function AppLayout({
+  children,
+  showHeader = true,
+  showFooter = false,
+  headerProps
 }: AppLayoutProps) {
   return (
-    <div className="min-h-screen bg-atlas-bg-primary text-atlas-text-primary flex flex-col">
+    <div className="h-screen bg-atlas-bg-primary text-atlas-text-primary flex flex-col overflow-hidden">
       {showHeader && <AppHeader {...headerProps} />}
-      <main className="flex-1 flex flex-col overflow-auto">
+      <main className="flex-1 flex flex-col overflow-y-auto min-h-0">
         {children}
       </main>
       {showFooter && <AppFooter />}

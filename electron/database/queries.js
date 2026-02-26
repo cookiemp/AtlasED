@@ -464,3 +464,90 @@ export function getKnowledgeGraphData() {
 
     return { waypoints, waypointTags };
 }
+
+// ============ Bookmarks ============
+
+export function createBookmark({ waypoint_id, timestamp_seconds, label, color }) {
+    const db = getDatabase();
+    const id = uuidv4();
+    db.prepare(`
+        INSERT INTO bookmarks (id, waypoint_id, timestamp_seconds, label, color)
+        VALUES (?, ?, ?, ?, ?)
+    `).run(id, waypoint_id, timestamp_seconds, label || '', color || 'gold');
+    return db.prepare('SELECT * FROM bookmarks WHERE id = ?').get(id);
+}
+
+export function getBookmarks(waypointId) {
+    const db = getDatabase();
+    return db.prepare(
+        'SELECT * FROM bookmarks WHERE waypoint_id = ? ORDER BY timestamp_seconds ASC'
+    ).all(waypointId);
+}
+
+export function updateBookmark(id, { label, color }) {
+    const db = getDatabase();
+    const sets = [];
+    const params = [];
+    if (label !== undefined) { sets.push('label = ?'); params.push(label); }
+    if (color !== undefined) { sets.push('color = ?'); params.push(color); }
+    if (sets.length === 0) return;
+    params.push(id);
+    db.prepare(`UPDATE bookmarks SET ${sets.join(', ')} WHERE id = ?`).run(...params);
+}
+
+export function deleteBookmark(id) {
+    const db = getDatabase();
+    db.prepare('DELETE FROM bookmarks WHERE id = ?').run(id);
+}
+
+// ============ Global Search ============
+
+export function globalSearch(query) {
+    const db = getDatabase();
+    const term = `%${query}%`;
+
+    // Search expeditions
+    const expeditions = db.prepare(`
+        SELECT id, title, thumbnail_url, 'expedition' as type
+        FROM expeditions
+        WHERE title LIKE ?
+        ORDER BY updated_at DESC
+        LIMIT 5
+    `).all(term);
+
+    // Search waypoints (title + transcript)
+    const waypoints = db.prepare(`
+        SELECT w.id, w.title, w.expedition_id, w.youtube_id, w.order_index, w.is_charted,
+               e.title as expedition_title, 'waypoint' as type
+        FROM waypoints w
+        JOIN expeditions e ON e.id = w.expedition_id
+        WHERE w.title LIKE ?
+        ORDER BY w.created_at DESC
+        LIMIT 8
+    `).all(term);
+
+    // Search notes content
+    const notes = db.prepare(`
+        SELECT n.id, n.waypoint_id, n.content, w.title as waypoint_title,
+               w.expedition_id, e.title as expedition_title, 'note' as type
+        FROM notes n
+        JOIN waypoints w ON w.id = n.waypoint_id
+        JOIN expeditions e ON e.id = w.expedition_id
+        WHERE n.content LIKE ?
+        ORDER BY n.updated_at DESC
+        LIMIT 5
+    `).all(term);
+
+    // Search bookmarks by label
+    const bookmarks = db.prepare(`
+        SELECT b.id, b.label, b.timestamp_seconds, b.waypoint_id, b.color,
+               w.title as waypoint_title, w.expedition_id, 'bookmark' as type
+        FROM bookmarks b
+        JOIN waypoints w ON w.id = b.waypoint_id
+        WHERE b.label LIKE ? AND b.label != ''
+        ORDER BY b.created_at DESC
+        LIMIT 5
+    `).all(term);
+
+    return { expeditions, waypoints, notes, bookmarks };
+}

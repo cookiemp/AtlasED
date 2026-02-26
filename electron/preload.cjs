@@ -69,9 +69,22 @@ contextBridge.exposeInMainWorld('atlased', {
         upsert: (waypointId, content) => ipcRenderer.invoke('db:upsertNote', waypointId, content)
     },
 
+    // Database: Bookmarks
+    bookmarks: {
+        create: (data) => ipcRenderer.invoke('db:createBookmark', data),
+        getAll: (waypointId) => ipcRenderer.invoke('db:getBookmarks', waypointId),
+        update: (id, data) => ipcRenderer.invoke('db:updateBookmark', id, data),
+        delete: (id) => ipcRenderer.invoke('db:deleteBookmark', id)
+    },
+
     // Knowledge Graph
     knowledgeGraph: {
         getData: () => ipcRenderer.invoke('db:getKnowledgeGraphData')
+    },
+
+    // Global Search
+    search: {
+        query: (q) => ipcRenderer.invoke('db:globalSearch', q)
     },
 
     // AI Services

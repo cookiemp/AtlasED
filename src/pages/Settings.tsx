@@ -208,12 +208,12 @@ export default function Settings() {
                       dispatch({ type: 'SET_API_KEY', value: e.target.value });
                     }}
                     placeholder="Enter your Gemini API key"
-                    className="w-full bg-atlas-bg-tertiary border border-atlas-border rounded-xl px-4 py-3.5 pr-24 text-atlas-text-primary placeholder-atlas-text-muted focus:outline-none focus:border-atlas-gold/50 input-glow transition-all duration-200 font-mono text-sm"
+                    className="w-full bg-atlas-bg-tertiary border border-atlas-border rounded-xl px-4 py-3.5 pr-32 text-atlas-text-primary placeholder-atlas-text-muted focus:outline-none focus:border-atlas-gold/50 input-glow transition-all duration-200 font-mono text-sm"
                   />
                   <button
                     type="button"
                     onClick={() => dispatch({ type: 'TOGGLE_SHOW_API_KEY' })}
-                    className="absolute right-14 top-1/2 -translate-y-1/2 p-2 text-atlas-text-muted hover:text-atlas-text-primary transition-colors"
+                    className="absolute right-[6.5rem] top-1/2 -translate-y-1/2 p-2 text-atlas-text-muted hover:text-atlas-text-primary transition-colors"
                   >
                     {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -221,7 +221,7 @@ export default function Settings() {
                     type="button"
                     onClick={handleValidate}
                     disabled={isValidating}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-atlas-bg-secondary border border-atlas-border rounded-lg text-xs font-medium text-atlas-text-secondary hover:text-atlas-gold hover:border-atlas-gold/50 transition-all duration-200 disabled:opacity-50"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 min-w-[5.5rem] text-center bg-atlas-bg-secondary border border-atlas-border rounded-lg text-xs font-medium text-atlas-text-secondary hover:text-atlas-gold hover:border-atlas-gold/50 transition-all duration-200 disabled:opacity-50"
                   >
                     {isValidating ? "Validating..." : "Validate"}
                   </button>

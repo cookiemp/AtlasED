@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   MapPin, Clock, Calendar, MoreVertical,
-  CheckCircle, PlayCircle, Circle, FileText, Lock, Loader2, ChevronDown
+  CheckCircle, PlayCircle, Circle, FileText, Lock, Loader2
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { cn } from "@/lib/utils";
@@ -368,16 +368,7 @@ export default function ExpeditionView() {
           </div>
         </div>
 
-        {/* Bottom Info */}
-        <div className="mt-6 flex items-center justify-between text-atlas-text-muted text-sm">
-          <p>Showing {filteredWaypoints.length} of {waypoints.length} waypoints</p>
-          {waypoints.length > 10 && (
-            <button className="flex items-center gap-2 hover:text-atlas-text-primary transition-colors">
-              <ChevronDown className="w-[18px] h-[18px]" />
-              Load remaining waypoints
-            </button>
-          )}
-        </div>
+
       </div>
     </AppLayout>
   );

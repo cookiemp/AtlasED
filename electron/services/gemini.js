@@ -3,8 +3,14 @@
  * Handles communication with Google Gemini API for Field Guide generation
  */
 
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent';
-const REQUEST_TIMEOUT_MS = 60000; // 60 seconds
+const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
+const PRIMARY_MODEL = 'gemini-3-flash-preview';
+const FALLBACK_MODEL = 'gemini-2.5-flash';
+const REQUEST_TIMEOUT_MS = 90000; // 90 seconds
+
+function getModelUrl(model) {
+    return `${GEMINI_BASE_URL}/${model}:generateContent`;
+}
 
 /**
  * Sanitize user-supplied text before inserting into AI prompts.
@@ -42,6 +48,47 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = REQUEST_TIMEOUT_M
             throw new Error(`Request timed out after ${timeoutMs}ms`);
         }
         throw error;
+    }
+}
+
+/**
+ * Fetch with automatic model fallback.
+ * Tries the primary model first with a SHORT timeout. If it returns 429/503
+ * or times out quickly, automatically retries with the fallback model
+ * which gets the full timeout window.
+ */
+const PRIMARY_TIMEOUT_MS = 20000; // 20 seconds — short leash for preview model
+
+async function fetchWithFallback(apiKey, body, timeoutMs = REQUEST_TIMEOUT_MS) {
+    const options = {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey,
+        },
+        body: JSON.stringify(body),
+    };
+
+    // Try primary model with short timeout
+    try {
+        const primaryResponse = await fetchWithTimeout(getModelUrl(PRIMARY_MODEL), options, PRIMARY_TIMEOUT_MS);
+
+        if (primaryResponse.ok) {
+            return primaryResponse;
+        }
+
+        // If overloaded/rate-limited, try fallback with full timeout
+        if (primaryResponse.status === 429 || primaryResponse.status === 503) {
+            console.log(`[Gemini] ${PRIMARY_MODEL} returned ${primaryResponse.status}, falling back to ${FALLBACK_MODEL}`);
+            return await fetchWithTimeout(getModelUrl(FALLBACK_MODEL), options, timeoutMs);
+        }
+
+        // Other HTTP errors — return as-is
+        return primaryResponse;
+    } catch (primaryError) {
+        // Timeout or network error — try fallback with full timeout
+        console.log(`[Gemini] ${PRIMARY_MODEL} failed (${primaryError.message}), falling back to ${FALLBACK_MODEL}`);
+        return await fetchWithTimeout(getModelUrl(FALLBACK_MODEL), options, timeoutMs);
     }
 }
 
@@ -108,23 +155,16 @@ Rules:
 - Return ONLY valid JSON, no additional text`;
 
     try {
-        const response = await fetchWithTimeout(GEMINI_API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-goog-api-key': apiKey,
-            },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{ text: prompt }]
-                }],
-                generationConfig: {
-                    temperature: 0.7,
-                    topK: 40,
-                    topP: 0.95,
-                    maxOutputTokens: 8192,
-                }
-            })
+        const response = await fetchWithFallback(apiKey, {
+            contents: [{
+                parts: [{ text: prompt }]
+            }],
+            generationConfig: {
+                temperature: 0.7,
+                topK: 40,
+                topP: 0.95,
+                maxOutputTokens: 8192,
+            }
         });
 
         if (!response.ok) {
@@ -232,23 +272,16 @@ Rules:
 - Return ONLY valid JSON, no additional text`;
 
     try {
-        const response = await fetchWithTimeout(GEMINI_API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-goog-api-key': apiKey,
-            },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{ text: prompt }]
-                }],
-                generationConfig: {
-                    temperature: 0.7,
-                    topK: 40,
-                    topP: 0.95,
-                    maxOutputTokens: 4096,
-                }
-            })
+        const response = await fetchWithFallback(apiKey, {
+            contents: [{
+                parts: [{ text: prompt }]
+            }],
+            generationConfig: {
+                temperature: 0.7,
+                topK: 40,
+                topP: 0.95,
+                maxOutputTokens: 4096,
+            }
         });
 
         if (!response.ok) {
@@ -304,20 +337,13 @@ export async function validateApiKey(apiKey) {
     }
 
     try {
-        const response = await fetchWithTimeout(GEMINI_API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-goog-api-key': apiKey,
-            },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{ text: 'Say "OK" to confirm this API key works.' }]
-                }],
-                generationConfig: {
-                    maxOutputTokens: 10,
-                }
-            })
+        const response = await fetchWithFallback(apiKey, {
+            contents: [{
+                parts: [{ text: 'Say "OK" to confirm this API key works.' }]
+            }],
+            generationConfig: {
+                maxOutputTokens: 10,
+            }
         });
 
         if (response.ok) {
@@ -360,7 +386,7 @@ export async function chatWithAI(apiKey, message, transcript, videoTitle, previo
 **Video Title:** ${sanitizeForPrompt(videoTitle)}
 
 **Video Transcript (for context):**
-${transcript ? transcript.substring(0, 15000) : 'No transcript available yet.'}
+${transcript ? transcript.substring(0, 8000) : 'No transcript available yet.'}
 
 Instructions:
 - Answer questions about the video content clearly and concisely
@@ -391,21 +417,14 @@ Instructions:
     });
 
     try {
-        const response = await fetchWithTimeout(GEMINI_API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-goog-api-key': apiKey,
-            },
-            body: JSON.stringify({
-                contents: contents,
-                generationConfig: {
-                    temperature: 0.7,
-                    topK: 40,
-                    topP: 0.95,
-                    maxOutputTokens: 1024,
-                }
-            })
+        const response = await fetchWithFallback(apiKey, {
+            contents: contents,
+            generationConfig: {
+                temperature: 0.7,
+                topK: 40,
+                topP: 0.95,
+                maxOutputTokens: 1024,
+            }
         });
 
         if (!response.ok) {

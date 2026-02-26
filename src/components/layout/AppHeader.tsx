@@ -1,6 +1,7 @@
-import { Compass, ArrowLeft, Settings, Network, Brain } from "lucide-react";
+import { Compass, ArrowLeft, Settings, Network, Brain, Search } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { WindowControls } from "@/components/WindowControls";
 
 interface AppHeaderProps {
   showBack?: boolean;
@@ -27,9 +28,9 @@ export function AppHeader({ showBack = true, backLabel = "Back", backTo, title, 
   };
 
   return (
-    <header className="h-14 bg-atlas-bg-secondary border-b border-atlas-border flex items-center justify-between px-6 select-none">
+    <header className="h-14 bg-atlas-bg-secondary border-b border-atlas-border flex items-center justify-between pl-6 pr-0 select-none" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties} data-window-drag>
       {/* Left: Logo and Navigation */}
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-6" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
         {/* Logo */}
         <button
           type="button"
@@ -69,8 +70,20 @@ export function AppHeader({ showBack = true, backLabel = "Back", backTo, title, 
         ) : null}
       </div>
 
-      {/* Right: Atlas + Settings */}
-      <div className="flex items-center gap-2">
+      {/* Right: Search + Atlas + Settings */}
+      <div className="flex items-center gap-2" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+        <button
+          onClick={() => {
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
+          }}
+          className="flex items-center gap-2.5 text-atlas-text-muted hover:text-atlas-text-primary transition-all duration-200 px-3 py-1.5 rounded-lg hover:bg-atlas-bg-tertiary border border-atlas-border/50 hover:border-atlas-border mr-1"
+        >
+          <Search className="w-3.5 h-3.5" />
+          <span className="text-xs">Search</span>
+          <kbd className="text-[10px] px-1.5 py-0.5 rounded bg-atlas-bg-tertiary border border-atlas-border font-mono text-atlas-text-muted ml-1">
+            Ctrl K
+          </kbd>
+        </button>
         <button
           onClick={() => navigate("/atlas")}
           className={cn(
@@ -108,6 +121,12 @@ export function AppHeader({ showBack = true, backLabel = "Back", backTo, title, 
           )} />
           <span className="text-sm font-medium">Settings</span>
         </button>
+
+        {/* Divider before window controls */}
+        <div className="w-px h-6 bg-atlas-border ml-2" />
+
+        {/* Window Controls */}
+        <WindowControls />
       </div>
     </header>
   );

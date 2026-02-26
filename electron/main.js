@@ -159,6 +159,7 @@ app.whenReady().then(() => {
                         window.__ytHideInjected=true;
                         const style = document.createElement('style');
                         style.textContent = \`
+                            /* Hide pause/end overlays and suggestions */
                             .ytp-pause-overlay,
                             .ytp-pause-overlay-container,
                             .ytp-scroll-min .ytp-pause-overlay,
@@ -392,3 +393,12 @@ ipcMain.handle('db:upsertNote', (_, waypointId, content) => {
 ipcMain.handle('db:getKnowledgeGraphData', () => {
     return queries.getKnowledgeGraphData();
 });
+
+// Bookmarks
+ipcMain.handle('db:createBookmark', (_, data) => queries.createBookmark(data));
+ipcMain.handle('db:getBookmarks', (_, waypointId) => queries.getBookmarks(waypointId));
+ipcMain.handle('db:updateBookmark', (_, id, data) => queries.updateBookmark(id, data));
+ipcMain.handle('db:deleteBookmark', (_, id) => queries.deleteBookmark(id));
+
+// Global Search
+ipcMain.handle('db:globalSearch', (_, query) => queries.globalSearch(query));

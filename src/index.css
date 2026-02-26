@@ -108,23 +108,17 @@
   }
 }
 
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+/* Hide all scrollbars globally — pages remain scrollable */
+* {
+  scrollbar-width: none;
+  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE/Edge */
 }
 
-::-webkit-scrollbar-track {
-  background: hsl(var(--atlas-bg-secondary));
-}
-
-::-webkit-scrollbar-thumb {
-  background: hsl(var(--atlas-border));
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--atlas-gold));
+*::-webkit-scrollbar {
+  display: none;
+  /* Chrome/Safari/Electron */
 }
 
 /* Modal Scrollbar - Thinner and more subtle */

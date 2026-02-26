@@ -92,6 +92,17 @@ export function initDatabase() {
       FOREIGN KEY (waypoint_id) REFERENCES waypoints(id) ON DELETE CASCADE
     );
 
+    -- Bookmarks (timestamped markers on videos)
+    CREATE TABLE IF NOT EXISTS bookmarks (
+      id TEXT PRIMARY KEY,
+      waypoint_id TEXT NOT NULL,
+      timestamp_seconds REAL NOT NULL,
+      label TEXT DEFAULT '',
+      color TEXT DEFAULT 'gold',
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (waypoint_id) REFERENCES waypoints(id) ON DELETE CASCADE
+    );
+
     -- Create indexes for better query performance
     CREATE INDEX IF NOT EXISTS idx_waypoints_expedition ON waypoints(expedition_id);
     CREATE INDEX IF NOT EXISTS idx_waypoints_youtube ON waypoints(youtube_id);
@@ -99,6 +110,7 @@ export function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_waypoint_tags_waypoint ON waypoint_tags(waypoint_id);
     CREATE INDEX IF NOT EXISTS idx_quiz_attempts_waypoint ON quiz_attempts(waypoint_id);
     CREATE INDEX IF NOT EXISTS idx_notes_waypoint ON notes(waypoint_id);
+    CREATE INDEX IF NOT EXISTS idx_bookmarks_waypoint ON bookmarks(waypoint_id);
   `);
 
   console.log('Database initialized at:', dbPath);

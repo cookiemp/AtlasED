@@ -4,10 +4,10 @@ import { Plus, Loader2 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ExpeditionCard } from "@/components/dashboard/ExpeditionCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
-import { RecentActivity } from "@/components/dashboard/RecentActivity";
+import { ReviewsDue } from "@/components/dashboard/ReviewsDue";
 import { LearningTips } from "@/components/dashboard/LearningTips";
 import { NewExpeditionModal } from "@/components/modals/NewExpeditionModal";
-import type { Expedition, Activity } from "@/types/expedition";
+import type { Expedition } from "@/types/expedition";
 import type { DbExpedition } from "@/types/electron";
 
 // Transform database expedition to UI expedition format
@@ -50,16 +50,7 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Static activities for now - could be dynamic in the future
-  const activities: Activity[] = [
-    {
-      id: "a1",
-      type: "completed",
-      title: "Keep learning and making progress!",
-      subtitle: "Complete waypoints to track your journey",
-      timestamp: "Recently",
-    },
-  ];
+
 
   const loadExpeditions = useCallback(async () => {
     try {
@@ -194,7 +185,7 @@ export default function Dashboard() {
 
             {/* Info Section */}
             <div className="mt-10 grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <RecentActivity activities={activities} />
+              <ReviewsDue />
               <LearningTips />
             </div>
           </div>

@@ -64,6 +64,15 @@ export interface DbNote {
     updated_at: string;
 }
 
+export interface DbBookmark {
+    id: string;
+    waypoint_id: string;
+    timestamp_seconds: number;
+    label: string;
+    color: string;
+    created_at: string;
+}
+
 export interface KnowledgeGraphData {
     waypoints: Array<{
         id: string;
@@ -77,6 +86,44 @@ export interface KnowledgeGraphData {
         waypoint_id: string;
         tag_id: string;
         tag_name: string;
+    }>;
+}
+
+export interface SearchResults {
+    expeditions: Array<{
+        id: string;
+        title: string;
+        thumbnail_url?: string;
+        type: 'expedition';
+    }>;
+    waypoints: Array<{
+        id: string;
+        title: string;
+        expedition_id: string;
+        youtube_id: string;
+        order_index: number;
+        is_charted: number;
+        expedition_title: string;
+        type: 'waypoint';
+    }>;
+    notes: Array<{
+        id: string;
+        waypoint_id: string;
+        content: string;
+        waypoint_title: string;
+        expedition_id: string;
+        expedition_title: string;
+        type: 'note';
+    }>;
+    bookmarks: Array<{
+        id: string;
+        label: string;
+        timestamp_seconds: number;
+        waypoint_id: string;
+        color: string;
+        waypoint_title: string;
+        expedition_id: string;
+        type: 'bookmark';
     }>;
 }
 
@@ -220,8 +267,17 @@ export interface AtlasedAPI {
         get: (waypointId: string) => Promise<DbNote | null>;
         upsert: (waypointId: string, content: string) => Promise<DbNote>;
     };
+    bookmarks: {
+        create: (data: { waypoint_id: string; timestamp_seconds: number; label?: string; color?: string }) => Promise<DbBookmark>;
+        getAll: (waypointId: string) => Promise<DbBookmark[]>;
+        update: (id: string, data: { label?: string; color?: string }) => Promise<void>;
+        delete: (id: string) => Promise<void>;
+    };
     knowledgeGraph: {
         getData: () => Promise<KnowledgeGraphData>;
+    };
+    search: {
+        query: (q: string) => Promise<SearchResults>;
     };
     ai: {
         fetchTranscript: (videoId: string) => Promise<TranscriptResult>;

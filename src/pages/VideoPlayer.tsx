@@ -1,142 +1,29 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
-  ArrowLeft, Settings, Play, Pause, Volume2, Maximize,
-  ChevronLeft, ChevronRight, CheckCircle, MapPin, Clock,
-  BookOpen, Compass, Key, Code2, AlertCircle, Send, Loader2, RefreshCw,
-  StickyNote, Map as MapIcon, Circle, CircleDot
+  ArrowLeft, Settings, Play, BrainCircuit, Loader2,
+  BookOpen, Compass, StickyNote, Map as MapIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { DbWaypoint, DbFieldGuide } from "@/types/electron";
-import { QuizModal, type QuizQuestion } from "@/components/modals/QuizModal";
+import type { DbWaypoint, DbFieldGuide, DbBookmark } from "@/types/electron";
+import { QuizModal, type QuizQuestion, type QuizResult } from "@/components/modals/QuizModal";
+import { FieldGuidePanel } from "@/components/video-player/FieldGuidePanel";
+import { CompassAIChat } from "@/components/video-player/CompassAIChat";
+import { NotesTab } from "@/components/video-player/NotesTab";
+import { ChartTab } from "@/components/video-player/ChartTab";
+import { VideoInfoBar } from "@/components/video-player/VideoInfoBar";
+import { WindowControls } from "@/components/WindowControls";
 
 type TabType = 'field-guide' | 'notes' | 'chart' | 'compass-ai';
-
-// Simple, safe markdown renderer for chat messages
-function renderMarkdown(text: string) {
-  // Split by code blocks first
-  const parts = text.split(/(```[\s\S]*?```)/g);
-
-  return parts.map((part, i) => {
-    // Code block
-    if (part.startsWith('```')) {
-      const lines = part.slice(3, -3).split('\n');
-      const language = lines[0]?.trim() || '';
-      const code = lines.slice(language ? 1 : 0).join('\n');
-      return (
-        <div key={`code-${i}`} className="my-2 rounded-lg overflow-hidden">
-          {language && (
-            <div className="bg-atlas-bg-tertiary px-3 py-1 text-xs text-atlas-text-muted uppercase">
-              {language}
-            </div>
-          )}
-          <pre className="bg-atlas-bg-tertiary/50 p-3 overflow-x-auto">
-            <code className="text-xs font-mono text-atlas-text-secondary">{code}</code>
-          </pre>
-        </div>
-      );
-    }
-
-    // Regular text — process inline markdown safely
-    const lines = part.split('\n');
-    return (
-      <span key={`text-${i}`}>
-        {lines.map((line, j) => {
-          // Safely render inline formatting as React elements
-          const renderInline = (text: string): React.ReactNode[] => {
-            const nodes: React.ReactNode[] = [];
-            let remaining = text;
-            let nodeIdx = 0;
-
-            while (remaining.length > 0) {
-              // Bold
-              const boldMatch = remaining.match(/\*\*(.+?)\*\*/);
-              // Inline code
-              const codeMatch = remaining.match(/`([^`]+)`/);
-              // Italic
-              const italicMatch = remaining.match(/\*(.+?)\*/);
-
-              // Find the earliest match
-              const matches = [
-                boldMatch ? { type: 'bold', match: boldMatch } : null,
-                codeMatch ? { type: 'code', match: codeMatch } : null,
-                italicMatch ? { type: 'italic', match: italicMatch } : null,
-              ].filter(Boolean).sort((a, b) => (a!.match.index ?? 0) - (b!.match.index ?? 0));
-
-              if (matches.length === 0 || matches[0]!.match.index === undefined) {
-                nodes.push(remaining);
-                break;
-              }
-
-              const earliest = matches[0]!;
-              const idx = earliest.match.index!;
-
-              if (idx > 0) {
-                nodes.push(remaining.slice(0, idx));
-              }
-
-              if (earliest.type === 'bold') {
-                nodes.push(
-                  <strong key={`b-${nodeIdx++}`} className="text-atlas-text-primary font-semibold">
-                    {earliest.match[1]}
-                  </strong>
-                );
-              } else if (earliest.type === 'code') {
-                nodes.push(
-                  <code key={`c-${nodeIdx++}`} className="bg-atlas-bg-tertiary px-1.5 py-0.5 rounded text-xs font-mono text-atlas-gold">
-                    {earliest.match[1]}
-                  </code>
-                );
-              } else if (earliest.type === 'italic') {
-                nodes.push(
-                  <em key={`i-${nodeIdx++}`}>{earliest.match[1]}</em>
-                );
-              }
-
-              remaining = remaining.slice(idx + earliest.match[0].length);
-            }
-
-            return nodes;
-          };
-
-          // Bullet points
-          const isBullet = line.match(/^\s*[-*•]\s+(.*)/);
-          if (isBullet) {
-            return (
-              <span key={`line-${j}`} className="flex items-start gap-2 my-0.5">
-                <span className="text-atlas-gold mt-0">•</span>
-                <span>{renderInline(isBullet[1])}</span>
-              </span>
-            );
-          }
-
-          // Numbered list
-          const isNumbered = line.match(/^\s*(\d+)\.\s+(.*)/);
-          if (isNumbered) {
-            return (
-              <span key={`line-${j}`} className="flex items-start gap-2 my-0.5">
-                <span className="text-atlas-gold font-medium text-xs min-w-[1rem]">{isNumbered[1]}.</span>
-                <span>{renderInline(isNumbered[2])}</span>
-              </span>
-            );
-          }
-
-          return (
-            <span key={`line-${j}`}>
-              <span>{renderInline(line)}</span>
-              {j < lines.length - 1 && <br />}
-            </span>
-          );
-        })}
-      </span>
-    );
-  });
-}
 
 interface ChatMessage {
   type: 'ai' | 'user';
   content: string;
+  id: string;
 }
+
+// Helper to generate unique message IDs
+const generateMessageId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
 interface FieldGuideData {
   executive_summary: string;
@@ -165,16 +52,22 @@ export default function VideoPlayer() {
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
   const [isQuizOpen, setIsQuizOpen] = useState(false);
   const [currentQuizQuestions, setCurrentQuizQuestions] = useState<QuizQuestion[]>([]);
-  const [triggeredTimestamps, setTriggeredTimestamps] = useState<Set<number>>(new Set());
+  const [quizReviewMode, setQuizReviewMode] = useState(false);
+  const [quizReviewAnswer, setQuizReviewAnswer] = useState<number | undefined>(undefined);
+  const [quizResults, setQuizResults] = useState<Map<number, QuizResult>>(new Map());
   const [currentVideoTime, setCurrentVideoTime] = useState(0);
   const [prevWaypointId, setPrevWaypointId] = useState<string | null>(null);
   const [nextWaypointId, setNextWaypointId] = useState<string | null>(null);
   const [noteContent, setNoteContent] = useState("");
   const [noteSaveStatus, setNoteSaveStatus] = useState<'saved' | 'saving' | 'idle'>('idle');
   const [allWaypoints, setAllWaypoints] = useState<DbWaypoint[]>([]);
+  const [autoQuizEnabled, setAutoQuizEnabled] = useState(true);
+  const [quizToast, setQuizToast] = useState<string | null>(null);
+  const [bookmarks, setBookmarks] = useState<DbBookmark[]>([]);
   const noteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playerRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const timePollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Reset all state when navigating to a different waypoint (prev/next)
   useEffect(() => {
@@ -190,13 +83,18 @@ export default function VideoPlayer() {
     setQuizQuestions([]);
     setIsQuizOpen(false);
     setCurrentQuizQuestions([]);
-    setTriggeredTimestamps(new Set());
+    setQuizReviewMode(false);
+    setQuizReviewAnswer(undefined);
+    setQuizResults(new Map());
     setCurrentVideoTime(0);
     setPrevWaypointId(null);
     setNextWaypointId(null);
     setNoteContent("");
     setNoteSaveStatus('idle');
     setAllWaypoints([]);
+    setAutoQuizEnabled(true); // Reset to default
+    setQuizToast(null); // Clear any active toast
+    setBookmarks([]); // Clear bookmarks
     setIsLoading(true);
   }, [id]);
 
@@ -262,6 +160,10 @@ export default function VideoPlayer() {
           const note = await window.atlased.notes.get(wp.id);
           if (note) setNoteContent(note.content);
 
+          // Load bookmarks
+          const bmarks = await window.atlased.bookmarks.getAll(wp.id);
+          if (bmarks) setBookmarks(bmarks);
+
           // Get existing field guide
           const fg = await window.atlased.fieldGuides.get(id);
           if (fg && fg.executive_summary) {
@@ -299,6 +201,27 @@ export default function VideoPlayer() {
 
               if (quizzes.length > 0) {
                 setQuizQuestions(quizzes);
+                // Load existing quiz attempts to pre-populate quizResults
+                // This prevents already-completed quizzes from re-triggering
+                try {
+                  const attempts = await window.atlased.quizAttempts.getAll(wp.id);
+                  if (attempts && attempts.length > 0) {
+                    const loadedResults = new Map<number, QuizResult>();
+                    // Group attempts by question_index
+                    attempts.forEach((a: any) => {
+                      const q = quizzes[a.question_index];
+                      if (q && q.timestamp_seconds) {
+                        loadedResults.set(q.timestamp_seconds, {
+                          selectedIndex: a.is_correct ? q.correct_index : -1, // We don't store exact selection, approximate
+                          isCorrect: !!a.is_correct,
+                        });
+                      }
+                    });
+                    if (loadedResults.size > 0) {
+                      setQuizResults(loadedResults);
+                    }
+                  }
+                } catch { /* non-critical */ }
               }
             } catch (e) {
               console.error("Error parsing field guide:", e);
@@ -314,10 +237,24 @@ export default function VideoPlayer() {
     }
   }, [id]);
 
+  // Load auto_quiz setting
+  useEffect(() => {
+    async function loadQuizSetting() {
+      try {
+        if (window.atlased) {
+          const autoQuiz = await window.atlased.settings.get('auto_quiz');
+          setAutoQuizEnabled(autoQuiz !== false); // default to true
+        }
+      } catch { /* use default */ }
+    }
+    loadQuizSetting();
+  }, []);
+
   useEffect(() => {
     loadWaypointData();
     // Initialize Compass AI greeting
     setChatMessages([{
+      id: generateMessageId(),
       type: 'ai',
       content: "Hello! I'm Compass, your AI learning assistant. I can answer questions about this video, explain concepts in different ways, or provide additional examples. What would you like to know?",
     }]);
@@ -346,6 +283,54 @@ export default function VideoPlayer() {
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
   }, [loadWaypointData]);
+
+  // Active time polling — YouTube infoDelivery is unreliable for currentTime
+  // Poll every 500ms while video is playing to ensure quiz timestamps are caught
+  useEffect(() => {
+    if (videoState === 1 && quizQuestions.length > 0 && autoQuizEnabled) {
+      // Start polling
+      timePollingRef.current = setInterval(() => {
+        if (playerRef.current?.contentWindow) {
+          playerRef.current.contentWindow.postMessage(
+            JSON.stringify({ event: 'command', func: 'getVideoData', args: [] }),
+            'https://www.youtube.com'
+          );
+          // Also request current time directly
+          playerRef.current.contentWindow.postMessage(
+            JSON.stringify({ event: 'listening', id: 'atlased-player' }),
+            'https://www.youtube.com'
+          );
+        }
+      }, 500);
+    } else {
+      // Stop polling when not playing
+      if (timePollingRef.current) {
+        clearInterval(timePollingRef.current);
+        timePollingRef.current = null;
+      }
+    }
+    return () => {
+      if (timePollingRef.current) {
+        clearInterval(timePollingRef.current);
+        timePollingRef.current = null;
+      }
+    };
+  }, [videoState, quizQuestions.length, autoQuizEnabled]);
+
+  // Save video position periodically (every 5s) and on unmount
+  useEffect(() => {
+    const savePosition = () => {
+      if (waypoint && currentVideoTime > 0 && window.atlased) {
+        window.atlased.waypoints.updateProgress(waypoint.id, Math.floor(currentVideoTime));
+      }
+    };
+    const interval = setInterval(savePosition, 5000);
+    return () => {
+      clearInterval(interval);
+      // Save on unmount too
+      savePosition();
+    };
+  }, [waypoint, currentVideoTime]);
 
   // Generate field guide
   const handleGenerateFieldGuide = async () => {
@@ -383,7 +368,8 @@ export default function VideoPlayer() {
           };
           setFieldGuide(fgData);
 
-          // Also generate quizzes in parallel (fire & forget — don't block field guide)
+          // Generate timed quizzes via separate API call
+          // Falls back to field guide's embedded quizzes if the dedicated call fails
           let quizzes: QuizQuestion[] = [];
           try {
             const quizResult = await window.atlased.ai.generateQuizzes(transcript!, waypoint.title);
@@ -395,10 +381,25 @@ export default function VideoPlayer() {
                 explanation: q.explanation,
                 timestamp_seconds: q.timestamp_seconds || undefined,
               }));
-              setQuizQuestions(quizzes);
             }
           } catch (quizErr) {
-            console.warn('Quiz generation failed (non-critical):', quizErr);
+            console.warn('Timed quiz generation failed, using field guide quizzes:', quizErr);
+          }
+
+          // Fallback: use quizzes from the field guide response if dedicated generation failed
+          if (quizzes.length === 0 && result.data.quizzes && result.data.quizzes.length > 0) {
+            console.log('[Quiz] Using quizzes from field guide response as fallback');
+            quizzes = result.data.quizzes.map((q: any) => ({
+              question: q.question,
+              options: q.options,
+              correct_index: q.correct_index,
+              explanation: q.explanation,
+              timestamp_seconds: undefined, // field guide quizzes don't have timestamps
+            }));
+          }
+
+          if (quizzes.length > 0) {
+            setQuizQuestions(quizzes);
           }
 
           // Save to database — update if exists, create if new
@@ -462,7 +463,7 @@ export default function VideoPlayer() {
 
     const userMessage = chatInput.trim();
     setChatInput("");
-    setChatMessages(prev => [...prev, { type: 'user', content: userMessage }]);
+    setChatMessages(prev => [...prev, { id: generateMessageId(), type: 'user', content: userMessage }]);
     setIsSendingChat(true);
 
     try {
@@ -483,12 +484,13 @@ export default function VideoPlayer() {
         );
 
         if (result.success && result.response) {
-          setChatMessages(prev => [...prev, { type: 'ai', content: result.response! }]);
+          setChatMessages(prev => [...prev, { id: generateMessageId(), type: 'ai', content: result.response! }]);
         } else {
           console.error("Chat API error:", result.error);
           const errorText = result.error?.toLowerCase() || '';
           const isRateLimit = errorText.includes('rate limit') || errorText.includes('quota');
           setChatMessages(prev => [...prev, {
+            id: generateMessageId(),
             type: 'ai',
             content: isRateLimit
               ? "⏳ Rate limit reached — the free Gemini tier allows 20 requests/minute. Please wait about a minute and try again."
@@ -497,6 +499,7 @@ export default function VideoPlayer() {
         }
       } else {
         setChatMessages(prev => [...prev, {
+          id: generateMessageId(),
           type: 'ai',
           content: "I need a transcript to answer questions about this video. Please generate the Field Guide first to enable the chat feature."
         }]);
@@ -504,6 +507,7 @@ export default function VideoPlayer() {
     } catch (error) {
       console.error("Chat error:", error);
       setChatMessages(prev => [...prev, {
+        id: generateMessageId(),
         type: 'ai',
         content: "An error occurred. Please try again."
       }]);
@@ -545,14 +549,48 @@ export default function VideoPlayer() {
     }, 1000);
   };
 
+  // Bookmark handlers
+  const handleAddBookmark = async () => {
+    if (!waypoint || !window.atlased || !currentVideoTime) return;
+    try {
+      const bookmark = await window.atlased.bookmarks.create({
+        waypoint_id: waypoint.id,
+        timestamp_seconds: Math.floor(currentVideoTime),
+      });
+      setBookmarks(prev => [...prev, bookmark].sort((a, b) => a.timestamp_seconds - b.timestamp_seconds));
+    } catch (e) {
+      console.error('Failed to create bookmark:', e);
+    }
+  };
+
+  const handleDeleteBookmark = async (bookmarkId: string) => {
+    if (!window.atlased) return;
+    try {
+      await window.atlased.bookmarks.delete(bookmarkId);
+      setBookmarks(prev => prev.filter(b => b.id !== bookmarkId));
+    } catch (e) {
+      console.error('Failed to delete bookmark:', e);
+    }
+  };
+
+  const handleUpdateBookmark = async (bookmarkId: string, data: { label?: string; color?: string }) => {
+    if (!window.atlased) return;
+    try {
+      await window.atlased.bookmarks.update(bookmarkId, data);
+      setBookmarks(prev => prev.map(b => b.id === bookmarkId ? { ...b, ...data } : b));
+    } catch (e) {
+      console.error('Failed to update bookmark:', e);
+    }
+  };
+
   // Mid-stream quiz: pause video when reaching quiz timestamps
   useEffect(() => {
-    if (quizQuestions.length === 0 || videoState !== 1) return; // Only check while playing
+    if (quizQuestions.length === 0 || videoState !== 1 || !autoQuizEnabled) return;
 
     for (const q of quizQuestions) {
-      if (q.timestamp_seconds && !triggeredTimestamps.has(q.timestamp_seconds)) {
-        // Trigger quiz if within 2-second window of timestamp
-        if (Math.abs(currentVideoTime - q.timestamp_seconds) < 2) {
+      if (q.timestamp_seconds && !quizResults.has(q.timestamp_seconds)) {
+        // Trigger quiz if we've passed the timestamp (forward-only, within 2s window)
+        if (currentVideoTime >= q.timestamp_seconds && currentVideoTime < q.timestamp_seconds + 2) {
           // Pause the video
           if (playerRef.current?.contentWindow) {
             playerRef.current.contentWindow.postMessage(
@@ -560,19 +598,55 @@ export default function VideoPlayer() {
               'https://www.youtube.com'
             );
           }
-          // Show quiz for this timestamp
-          setCurrentQuizQuestions([q]);
-          setIsQuizOpen(true);
-          setTriggeredTimestamps(prev => new Set([...prev, q.timestamp_seconds!]));
+          // Mark this timestamp as triggered (will be updated with actual result when answered)
+          setQuizResults(prev => {
+            const next = new Map(prev);
+            // Only set a placeholder if not already answered
+            if (!next.has(q.timestamp_seconds!)) {
+              // We'll use -1 as placeholder until actually answered
+              // This entry gets overwritten by handleQuestionAnswered
+            }
+            return next;
+          });
+          // Show toast notification before opening quiz
+          setQuizToast("Comprehension check \u2014 let's see what you've learned!");
+          // Open quiz after brief delay so the toast is visible
+          setTimeout(() => {
+            setQuizToast(null);
+            setCurrentQuizQuestions([q]);
+            setIsQuizOpen(true);
+          }, 1500);
           break;
         }
       }
     }
-  }, [currentVideoTime, quizQuestions, videoState, triggeredTimestamps]);
+  }, [currentVideoTime, quizQuestions, videoState, quizResults, autoQuizEnabled]);
 
-  // Handle quiz completion
+  // Called when a single question is answered in the quiz modal
+  const handleQuestionAnswered = (question: QuizQuestion, selectedIndex: number, isCorrect: boolean) => {
+    if (question.timestamp_seconds) {
+      setQuizResults(prev => {
+        const next = new Map(prev);
+        next.set(question.timestamp_seconds!, { selectedIndex, isCorrect });
+        return next;
+      });
+    }
+  };
+
+  // Handle quiz completion — only called when user actually finishes/answers
   const handleQuizComplete = async (score: number, total: number) => {
-    // Record quiz attempt
+    // Mark the quiz timestamps as completed (for quizzes without per-question tracking)
+    for (const q of currentQuizQuestions) {
+      if (q.timestamp_seconds && !quizResults.has(q.timestamp_seconds)) {
+        setQuizResults(prev => {
+          const next = new Map(prev);
+          next.set(q.timestamp_seconds!, { selectedIndex: -1, isCorrect: false });
+          return next;
+        });
+      }
+    }
+
+    // Record quiz attempt in DB
     if (window.atlased && waypoint) {
       try {
         for (let i = 0; i < total; i++) {
@@ -586,9 +660,6 @@ export default function VideoPlayer() {
         console.warn('Failed to record quiz attempt:', e);
       }
     }
-    setIsQuizOpen(false);
-    // Resume playback after quiz
-    handleResumePlayback();
   };
 
   if (isLoading) {
@@ -612,7 +683,7 @@ export default function VideoPlayer() {
     );
   }
 
-  const youtubeEmbedUrl = `https://www.youtube.com/embed/${waypoint.youtube_id}?enablejsapi=1&rel=0&modestbranding=1&iv_load_policy=3&origin=${encodeURIComponent(window.location.origin)}`;
+  const youtubeEmbedUrl = `https://www.youtube.com/embed/${waypoint.youtube_id}?enablejsapi=1&rel=0&modestbranding=1&iv_load_policy=3&origin=${encodeURIComponent(window.location.origin)}${waypoint.last_watched_pos ? `&start=${Math.floor(waypoint.last_watched_pos)}` : ''}`;
 
   // Initialize YouTube IFrame API communication when iframe loads
   const handleIframeLoad = () => {
@@ -653,8 +724,8 @@ export default function VideoPlayer() {
   return (
     <div className="h-screen bg-atlas-bg-primary text-atlas-text-primary flex flex-col overflow-hidden">
       {/* Title Bar */}
-      <div className="h-10 bg-atlas-bg-secondary border-b border-atlas-border flex items-center justify-between px-4">
-        <div className="flex items-center gap-4">
+      <div className="h-10 bg-atlas-bg-secondary border-b border-atlas-border flex items-center justify-between pl-4 pr-0 select-none" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties} data-window-drag>
+        <div className="flex items-center gap-4" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
           <button
             onClick={() => navigate(`/expedition/${waypoint.expedition_id}`)}
             className="flex items-center gap-2 text-atlas-text-secondary hover:text-atlas-gold transition-colors group"
@@ -666,13 +737,19 @@ export default function VideoPlayer() {
           <span className="text-sm text-atlas-text-muted">{expeditionTitle}</span>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
           <button
             onClick={() => navigate('/settings')}
             className="p-1.5 text-atlas-text-secondary hover:text-atlas-gold transition-colors"
           >
             <Settings className="w-[18px] h-[18px]" />
           </button>
+
+          {/* Divider before window controls */}
+          <div className="w-px h-4 bg-atlas-border" />
+
+          {/* Window Controls */}
+          <WindowControls />
         </div>
       </div>
 
@@ -725,88 +802,52 @@ export default function VideoPlayer() {
                 )}
               </div>
             )}
-          </div>
-
-          {/* Video Info Bar */}
-          <div className="p-4 border-t border-atlas-border bg-atlas-bg-secondary flex-shrink-0">
-            <div className="flex items-start justify-between gap-3 mb-3">
-              <h2 className="font-display font-bold text-base text-atlas-text-primary leading-tight line-clamp-2">
-                {waypoint.title}
-              </h2>
-              <span className="text-xs text-atlas-text-muted bg-atlas-bg-tertiary px-2 py-1 rounded flex-shrink-0">
-                Waypoint {waypoint.order_index + 1}
-              </span>
-            </div>
-
-            {/* Duration + Status Row */}
-            <div className="flex items-center gap-4 mb-4">
-              <div className="flex items-center gap-1.5 text-atlas-text-secondary">
-                <Clock className="w-3.5 h-3.5" />
-                <span className="text-xs">
-                  {(() => {
-                    const dur = videoDuration || waypoint.duration_seconds;
-                    if (!dur) return '—';
-                    const h = Math.floor(dur / 3600);
-                    const m = Math.floor((dur % 3600) / 60);
-                    const s = dur % 60;
-                    return h > 0
-                      ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-                      : `${m}:${String(s).padStart(2, '0')}`;
-                  })()}
-                </span>
+            {/* Quiz Toast Notification */}
+            {quizToast && (
+              <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+                <div className="bg-atlas-bg-secondary/95 backdrop-blur-sm border border-atlas-gold/30 rounded-2xl px-8 py-6 flex items-center gap-4 shadow-2xl shadow-atlas-gold/10 animate-fade-in">
+                  <div className="w-12 h-12 rounded-xl bg-atlas-gold/10 flex items-center justify-center">
+                    <BrainCircuit className="w-6 h-6 text-atlas-gold animate-pulse" />
+                  </div>
+                  <div>
+                    <p className="font-display font-bold text-atlas-text-primary text-lg">Quiz Time!</p>
+                    <p className="font-body text-sm text-atlas-text-secondary">{quizToast}</p>
+                  </div>
+                </div>
               </div>
-              <div className="w-px h-3 bg-atlas-border" />
-              {waypoint.is_charted ? (
-                <div className="flex items-center gap-1.5 text-atlas-success">
-                  <CheckCircle className="w-3.5 h-3.5" />
-                  <span className="text-xs font-medium">Charted</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-1.5 text-atlas-text-muted">
-                  <MapPin className="w-3.5 h-3.5" />
-                  <span className="text-xs">Not charted</span>
-                </div>
-              )}
-            </div>
-
-            {/* Navigation Row — pushed to bottom */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => prevWaypointId && navigate(`/player/${prevWaypointId}`)}
-                disabled={!prevWaypointId}
-                className={cn(
-                  "flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-lg transition-all text-sm font-medium",
-                  prevWaypointId
-                    ? "bg-atlas-bg-tertiary hover:bg-atlas-border text-atlas-text-secondary hover:text-atlas-text-primary cursor-pointer"
-                    : "bg-atlas-bg-tertiary/50 text-atlas-text-muted/40 cursor-not-allowed"
-                )}
-              >
-                <ChevronLeft className="w-4 h-4" />
-                Prev
-              </button>
-              <button
-                onClick={handleMarkComplete}
-                disabled={waypoint.is_charted === 1}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 bg-atlas-gold hover:bg-atlas-gold-hover text-atlas-bg-primary rounded-lg transition-all text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <CheckCircle className="w-4 h-4" />
-                {waypoint.is_charted ? "Completed" : "Mark Complete"}
-              </button>
-              <button
-                onClick={() => nextWaypointId && navigate(`/player/${nextWaypointId}`)}
-                disabled={!nextWaypointId}
-                className={cn(
-                  "flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-lg transition-all text-sm font-medium",
-                  nextWaypointId
-                    ? "bg-atlas-bg-tertiary hover:bg-atlas-border text-atlas-text-secondary hover:text-atlas-text-primary cursor-pointer"
-                    : "bg-atlas-bg-tertiary/50 text-atlas-text-muted/40 cursor-not-allowed"
-                )}
-              >
-                Next
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
+            )}
           </div>
+
+          <VideoInfoBar
+            waypoint={waypoint}
+            videoDuration={videoDuration}
+            currentVideoTime={currentVideoTime}
+            quizQuestions={quizQuestions}
+            quizResults={quizResults}
+            autoQuizEnabled={autoQuizEnabled}
+            prevWaypointId={prevWaypointId}
+            nextWaypointId={nextWaypointId}
+            bookmarks={bookmarks}
+            onMarkComplete={handleMarkComplete}
+            onAddBookmark={handleAddBookmark}
+            onDeleteBookmark={handleDeleteBookmark}
+            onUpdateBookmark={handleUpdateBookmark}
+            onQuizMarkerClick={(q) => {
+              const result = q.timestamp_seconds ? quizResults.get(q.timestamp_seconds) : undefined;
+              setCurrentQuizQuestions([q]);
+              setQuizReviewMode(!!result);
+              setQuizReviewAnswer(result?.selectedIndex);
+              setIsQuizOpen(true);
+            }}
+            onSeekTo={(seconds) => {
+              if (playerRef.current?.contentWindow) {
+                playerRef.current.contentWindow.postMessage(
+                  JSON.stringify({ event: 'command', func: 'seekTo', args: [seconds, true] }),
+                  'https://www.youtube.com'
+                );
+              }
+            }}
+          />
         </div>
 
         {/* Resize Handle */}
@@ -855,324 +896,42 @@ export default function VideoPlayer() {
             ))}
           </div>
 
-          {/* Tab Content: Field Guide */}
+
           {activeTab === 'field-guide' && (
-            <div className="flex-1 overflow-auto p-6">
-              {isGeneratingGuide ? (
-                <div className="flex flex-col items-center justify-center h-full gap-4">
-                  <Loader2 className="w-8 h-8 text-atlas-gold animate-spin" />
-                  <p className="text-atlas-text-secondary">Generating Field Guide...</p>
-                  <p className="text-xs text-atlas-text-muted">This may take a minute</p>
-                </div>
-              ) : fieldGuide ? (
-                <>
-                  {/* Executive Summary */}
-                  <div className="mb-6">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-display font-bold text-atlas-text-primary flex items-center gap-2">
-                        <svg className="w-5 h-5 text-atlas-gold" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                          <path d="M14 2v6h6" />
-                          <path d="M16 13H8" />
-                          <path d="M16 17H8" />
-                        </svg>
-                        Summary
-                      </h3>
-                      <button
-                        onClick={handleGenerateFieldGuide}
-                        disabled={isGeneratingGuide}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-atlas-text-secondary hover:text-atlas-gold bg-atlas-bg-tertiary hover:bg-atlas-bg-tertiary/80 border border-atlas-border rounded-lg transition-all disabled:opacity-50"
-                        title="Regenerate Field Guide"
-                      >
-                        <RefreshCw className={cn("w-3.5 h-3.5", isGeneratingGuide && "animate-spin")} />
-                        Regenerate
-                      </button>
-                    </div>
-                    <p className="text-sm text-atlas-text-secondary leading-relaxed">
-                      {fieldGuide.executive_summary}
-                    </p>
-                  </div>
-
-                  {/* Key Concepts */}
-                  {fieldGuide.key_concepts && fieldGuide.key_concepts.length > 0 && (
-                    <div className="mb-6">
-                      <h3 className="font-display font-bold text-atlas-text-primary mb-3 flex items-center gap-2">
-                        <Key className="w-5 h-5 text-atlas-gold" />
-                        Key Concepts
-                      </h3>
-                      <ul className="space-y-3">
-                        {fieldGuide.key_concepts.map((concept) => (
-                          <li key={concept.title} className="flex items-start gap-3 text-sm">
-                            <span className="w-5 h-5 rounded bg-atlas-gold/10 border border-atlas-gold/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                              <span className="text-atlas-gold text-xs font-bold">{fieldGuide.key_concepts.indexOf(concept) + 1}</span>
-                            </span>
-                            <div>
-                              <p className="text-atlas-text-primary font-medium">{concept.title}</p>
-                              <p className="text-atlas-text-secondary mt-0.5">{concept.explanation}</p>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {/* Code Examples */}
-                  {fieldGuide.code_examples && fieldGuide.code_examples.length > 0 && (
-                    <div className="mb-6">
-                      <h3 className="font-display font-bold text-atlas-text-primary mb-3 flex items-center gap-2">
-                        <Code2 className="w-5 h-5 text-atlas-gold" />
-                        Code Examples
-                      </h3>
-                      {fieldGuide.code_examples.map((example) => (
-                        <div key={`${example.language}-${example.code.slice(0, 30)}`} className="mb-4">
-                          <div className="code-block rounded-lg p-4 overflow-x-auto">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-xs text-atlas-text-muted uppercase">{example.language}</span>
-                            </div>
-                            <pre className="text-xs text-atlas-text-secondary leading-relaxed font-mono">
-                              <code>{example.code}</code>
-                            </pre>
-                          </div>
-                          {example.explanation && (
-                            <p className="text-xs text-atlas-text-muted mt-2 px-1">{example.explanation}</p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Key Takeaways */}
-                  {fieldGuide.key_takeaways && fieldGuide.key_takeaways.length > 0 && (
-                    <div className="bg-atlas-gold/5 border border-atlas-gold/20 rounded-lg p-4">
-                      <div className="flex items-start gap-3">
-                        <AlertCircle className="w-[18px] h-[18px] text-atlas-gold flex-shrink-0 mt-0.5" />
-                        <div>
-                          <h4 className="font-bold text-atlas-text-primary text-sm mb-2">Key Takeaways</h4>
-                          <ul className="space-y-1">
-                            {fieldGuide.key_takeaways.map((takeaway) => (
-                              <li key={takeaway.slice(0, 50)} className="text-sm text-atlas-text-secondary flex items-start gap-2">
-                                <span className="text-atlas-gold mt-1">•</span>
-                                <span>{takeaway}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Take Quiz Button */}
-                  {quizQuestions.length > 0 && (
-                    <div className="pt-4 border-t border-atlas-border">
-                      <button
-                        onClick={handleOpenQuiz}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-atlas-gold/10 hover:bg-atlas-gold/20 border border-atlas-gold/30 text-atlas-gold font-semibold rounded-xl transition-all"
-                      >
-                        <CheckCircle className="w-4 h-4" />
-                        Take Comprehension Quiz ({quizQuestions.length} questions)
-                      </button>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full gap-4">
-                  <div className="w-16 h-16 rounded-full bg-atlas-gold/10 border border-atlas-gold/30 flex items-center justify-center">
-                    <BookOpen className="w-8 h-8 text-atlas-gold" />
-                  </div>
-                  <h3 className="font-display font-bold text-atlas-text-primary">No Field Guide Yet</h3>
-                  <p className="text-sm text-atlas-text-secondary text-center max-w-xs">
-                    Generate an AI-powered field guide with key concepts, code examples, and important notes.
-                  </p>
-                  <button
-                    onClick={handleGenerateFieldGuide}
-                    className="px-6 py-3 bg-atlas-gold hover:bg-atlas-gold-hover text-atlas-bg-primary font-bold rounded-xl transition-all"
-                  >
-                    Generate Field Guide
-                  </button>
-                </div>
-              )}
-            </div>
+            <FieldGuidePanel
+              fieldGuide={fieldGuide}
+              isGenerating={isGeneratingGuide}
+              quizQuestions={quizQuestions}
+              onGenerate={handleGenerateFieldGuide}
+              onOpenQuiz={handleOpenQuiz}
+            />
           )}
 
-          {/* Tab Content: Compass AI */}
           {activeTab === 'compass-ai' && (
-            <div className="flex-1 flex flex-col overflow-hidden">
-              {/* Chat Messages */}
-              <div className="flex-1 overflow-auto p-6 space-y-4">
-                {chatMessages.map((msg, index) => (
-                  <div key={`${msg.type}-${index}-${msg.content.slice(0, 20)}`} className={cn(
-                    "flex gap-3",
-                    msg.type === 'user' && "justify-end"
-                  )}>
-                    {msg.type === 'ai' && (
-                      <div className="w-8 h-8 rounded-full bg-atlas-gold/10 border border-atlas-gold/30 flex items-center justify-center flex-shrink-0">
-                        <Compass className="w-4 h-4 text-atlas-gold" />
-                      </div>
-                    )}
-                    <div className={cn(
-                      "rounded-2xl px-4 py-3 max-w-[85%]",
-                      msg.type === 'ai'
-                        ? "chat-bubble-ai rounded-tl-sm"
-                        : "chat-bubble-user rounded-tr-sm"
-                    )}>
-                      <div className="text-sm text-atlas-text-secondary leading-relaxed">{renderMarkdown(msg.content)}</div>
-                    </div>
-                  </div>
-                ))}
-                {isSendingChat && (
-                  <div className="flex gap-3">
-                    <div className="w-8 h-8 rounded-full bg-atlas-gold/10 border border-atlas-gold/30 flex items-center justify-center flex-shrink-0">
-                      <Compass className="w-4 h-4 text-atlas-gold" />
-                    </div>
-                    <div className="chat-bubble-ai rounded-2xl rounded-tl-sm px-4 py-3">
-                      <Loader2 className="w-4 h-4 animate-spin text-atlas-gold" />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Chat Input */}
-              <div className="p-4 border-t border-atlas-border bg-atlas-bg-secondary">
-                <form
-                  onSubmit={(e) => { e.preventDefault(); handleSendChat(); }}
-                  className="flex gap-3"
-                >
-                  <div className="flex-1 relative">
-                    <input
-                      type="text"
-                      value={chatInput}
-                      onChange={(e) => setChatInput(e.target.value)}
-                      placeholder="Ask Compass about this video..."
-                      disabled={isSendingChat}
-                      className="w-full bg-atlas-bg-tertiary border border-atlas-border rounded-xl px-4 py-3 text-sm text-atlas-text-primary placeholder-atlas-text-muted focus:outline-none focus:border-atlas-gold/50 focus:ring-1 focus:ring-atlas-gold/50 transition-all disabled:opacity-50"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={isSendingChat || !chatInput.trim()}
-                    className="w-11 h-11 bg-atlas-gold hover:bg-atlas-gold-hover rounded-xl flex items-center justify-center transition-colors flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Send className="w-[18px] h-[18px] text-atlas-bg-primary" />
-                  </button>
-                </form>
-                <p className="text-xs text-atlas-text-muted mt-2 text-center">
-                  {waypoint.transcript_text
-                    ? "Compass AI may produce inaccurate information. Always verify important concepts."
-                    : "Generate a Field Guide first to enable Compass AI chat."
-                  }
-                </p>
-              </div>
-            </div>
+            <CompassAIChat
+              messages={chatMessages}
+              isSending={isSendingChat}
+              chatInput={chatInput}
+              hasTranscript={!!waypoint.transcript_text}
+              onInputChange={setChatInput}
+              onSend={handleSendChat}
+            />
           )}
 
-          {/* Tab Content: Notes */}
           {activeTab === 'notes' && (
-            <div className="flex-1 flex flex-col overflow-hidden">
-              {/* Notes Header */}
-              <div className="px-6 py-4 border-b border-atlas-border bg-atlas-bg-secondary/50 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <StickyNote className="w-4 h-4 text-atlas-gold" />
-                  <h3 className="font-display font-semibold text-sm text-atlas-text-primary">Personal Notes</h3>
-                </div>
-                <span className={cn(
-                  "text-[10px] font-medium px-2 py-0.5 rounded-full transition-all",
-                  noteSaveStatus === 'saving' && "bg-atlas-gold/10 text-atlas-gold",
-                  noteSaveStatus === 'saved' && "bg-atlas-success/10 text-atlas-success",
-                  noteSaveStatus === 'idle' && "opacity-0"
-                )}>
-                  {noteSaveStatus === 'saving' ? 'Saving...' : noteSaveStatus === 'saved' ? '✓ Saved' : ''}
-                </span>
-              </div>
-              {/* Notes Textarea */}
-              <div className="flex-1 p-4 overflow-hidden">
-                <textarea
-                  value={noteContent}
-                  onChange={(e) => handleNoteChange(e.target.value)}
-                  placeholder="Write your notes about this video here...&#10;&#10;Tips:&#10;• Summarize key points in your own words&#10;• Note timestamps for important sections&#10;• Write down questions to revisit later"
-                  className="w-full h-full bg-atlas-bg-tertiary/50 border border-atlas-border/50 rounded-xl p-4 text-sm text-atlas-text-primary placeholder-atlas-text-muted/50 focus:outline-none focus:border-atlas-gold/30 focus:ring-1 focus:ring-atlas-gold/20 transition-all resize-none font-body leading-relaxed"
-                />
-              </div>
-            </div>
+            <NotesTab
+              noteContent={noteContent}
+              noteSaveStatus={noteSaveStatus}
+              onNoteChange={handleNoteChange}
+            />
           )}
 
-          {/* Tab Content: Chart (Waypoint List) */}
           {activeTab === 'chart' && (
-            <div className="flex-1 flex flex-col overflow-hidden">
-              {/* Chart Header */}
-              <div className="px-6 py-4 border-b border-atlas-border bg-atlas-bg-secondary/50">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <MapIcon className="w-4 h-4 text-atlas-gold" />
-                    <h3 className="font-display font-semibold text-sm text-atlas-text-primary">{expeditionTitle}</h3>
-                  </div>
-                  <span className="text-[10px] text-atlas-text-muted font-medium">
-                    {allWaypoints.filter(w => w.is_charted === 1).length}/{allWaypoints.length} charted
-                  </span>
-                </div>
-                {/* Progress bar */}
-                <div className="mt-2 h-1 bg-atlas-bg-tertiary rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-atlas-gold rounded-full transition-all duration-500"
-                    style={{ width: allWaypoints.length > 0 ? `${(allWaypoints.filter(w => w.is_charted === 1).length / allWaypoints.length) * 100}%` : '0%' }}
-                  />
-                </div>
-              </div>
-              {/* Waypoint List */}
-              <div className="flex-1 overflow-auto">
-                {allWaypoints.map((wp, idx) => {
-                  const isCurrent = wp.id === waypoint?.id;
-                  const isCharted = wp.is_charted === 1;
-                  const inProgress = !isCharted && wp.last_watched_pos && wp.last_watched_pos > 0;
-                  return (
-                    <button
-                      key={wp.id}
-                      onClick={() => {
-                        if (!isCurrent) navigate(`/player/${wp.id}`);
-                      }}
-                      className={cn(
-                        "w-full flex items-center gap-3 px-5 py-3.5 text-left transition-all border-l-2",
-                        isCurrent
-                          ? "bg-atlas-gold/5 border-l-atlas-gold"
-                          : "border-l-transparent hover:bg-atlas-bg-tertiary/50",
-                        !isCurrent && "cursor-pointer"
-                      )}
-                    >
-                      {/* Status Icon */}
-                      <div className="flex-shrink-0">
-                        {isCharted ? (
-                          <CheckCircle className="w-4 h-4 text-atlas-success" />
-                        ) : inProgress ? (
-                          <CircleDot className="w-4 h-4 text-atlas-gold" />
-                        ) : (
-                          <Circle className="w-4 h-4 text-atlas-text-muted/40" />
-                        )}
-                      </div>
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <p className={cn(
-                          "text-sm truncate leading-tight",
-                          isCurrent ? "text-atlas-gold font-semibold" : "text-atlas-text-primary"
-                        )}>
-                          {(() => {
-                            const alreadyNumbered = /^\s*\d+[\.\)\-\s]/.test(wp.title);
-                            return alreadyNumbered ? wp.title : `${idx + 1}. ${wp.title}`;
-                          })()}
-                        </p>
-                        {wp.duration_seconds ? (
-                          <span className="text-[10px] text-atlas-text-muted">
-                            {Math.floor(wp.duration_seconds / 60)}:{String(wp.duration_seconds % 60).padStart(2, '0')}
-                          </span>
-                        ) : null}
-                      </div>
-                      {/* Current indicator */}
-                      {isCurrent && (
-                        <span className="text-[9px] text-atlas-gold font-bold uppercase tracking-widest flex-shrink-0">Now</span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            <ChartTab
+              allWaypoints={allWaypoints}
+              currentWaypointId={waypoint.id}
+              expeditionTitle={expeditionTitle}
+            />
           )}
         </div>
       </div>
@@ -1182,12 +941,19 @@ export default function VideoPlayer() {
         isOpen={isQuizOpen}
         onClose={() => {
           setIsQuizOpen(false);
+          setQuizReviewMode(false);
+          setQuizReviewAnswer(undefined);
           handleResumePlayback();
         }}
-        onComplete={handleQuizComplete}
+        onComplete={(score, total) => {
+          handleQuizComplete(score, total);
+        }}
+        onQuestionAnswered={handleQuestionAnswered}
         questions={currentQuizQuestions}
         waypointTitle={waypoint.title}
+        reviewMode={quizReviewMode}
+        previousAnswer={quizReviewAnswer}
       />
-    </div>
+    </div >
   );
 }

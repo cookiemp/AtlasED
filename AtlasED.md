@@ -327,7 +327,7 @@ Analyze these video transcripts from a learning playlist and identify conceptual
 # 🗓️ Step-by-Step Implementation Plan
 
 **Last Updated:** 2026-02-17  
-**Overall Progress:** ~65% of core vision complete
+**Overall Progress:** ~70% of core vision complete
 
 ### **Phase 1: The "Skeleton" (Days 1-3)** ✅ COMPLETE
 - [x] **Set up Electron + React + Vite.**
@@ -343,14 +343,14 @@ Analyze these video transcripts from a learning playlist and identify conceptual
 - [x] **Notes Tab:** Per-waypoint personal notes with 1s debounce auto-save.
 - [x] **Chart Tab:** Navigable waypoint list with status indicators (Charted/In Progress/Not Started).
 
-### **Phase 3: The "Tutor" (Days 8-14)** 🔴 IN PROGRESS
+### **Phase 3: The "Tutor" (Days 8-14)** ✅ COMPLETE
 *The core differentiator — active learning through mid-video quizzes.*
 - [x] **Quiz Generation Backend:** `generateQuizzes()` in Gemini service extracts timestamps + multiple-choice questions.
 - [x] **QuizModal Component:** UI overlay for answering quiz questions.
 - [x] **Quiz Attempt Storage:** `createQuizAttempt` IPC and database table working.
-- [ ] **🔴 Mid-Stream Auto-Pause:** Monitor YouTube iframe playback time and automatically pause at AI-determined timestamps.
-- [ ] **🔴 Timed Quiz Trigger:** Wire up the auto-pause to open the QuizModal overlay at the right moment.
-- [ ] **🔴 Quiz Flow Integration:** After answering, resume playback. Track per-waypoint quiz completion state.
+- [x] **Mid-Stream Auto-Pause:** Monitor YouTube iframe playback time via active polling (500ms interval) and auto-pause at AI-determined timestamps.
+- [x] **Timed Quiz Trigger:** Toast notification ("Quiz Time!") followed by QuizModal overlay with 1.5s animated transition.
+- [x] **Quiz Flow Integration:** Resume playback after answering. Visual quiz timeline with markers showing completed/upcoming quizzes. Respects `auto_quiz` user setting.
 
 ### **Phase 4: The "Atlas" & Polish (Days 15-20)** 🟡 MOSTLY COMPLETE
 - [x] **Knowledge Graph:** D3-powered force graph with real data, tag-based connections, filtering, node interactions, sidebar details.
@@ -463,14 +463,13 @@ Analyze these video transcripts from a learning playlist and identify conceptual
 # 🎯 Prioritized Next Steps
 
 **Immediate (Next Sprint):**
-1. **🔴 Mid-stream quiz system** — Wire up iframe time monitoring + auto-pause + QuizModal trigger. This is the #1 core differentiator.
-2. **🟡 Dashboard "Reviews Due" widget** — Low effort, high visibility. SRS data already exists.
-3. **🟡 Decompose `VideoPlayer.tsx`** — At 1,134 lines, becoming unmaintainable.
+1. ~~**🟡 Dashboard "Reviews Due" widget** — Low effort, high visibility. SRS data already exists.~~ ✅
+2. ~~**🟡 Decompose `VideoPlayer.tsx`** — At 1,259 lines, becoming unmaintainable.~~ ✅ (840 lines + 5 sub-components)
+3. ~~**🔖 Timestamp bookmarks** — Simple DB table + small UI, huge user value.~~ ✅
 
 **Short Term:**
-4. **🔖 Timestamp bookmarks** — Simple DB table + small UI, huge user value.
-5. **🔍 Global search (`Ctrl+K`)** — Essential once content grows.
-6. **📊 Learning analytics** — Study streaks, time tracking, progress charts.
+4. ~~**🔍 Global search (`Ctrl+K`)** — Essential once content grows.~~ ✅
+5. **📊 Learning analytics** — Study streaks, time tracking, progress charts.
 
 **Backlog:**
 7. Flashcard mode from quiz data
