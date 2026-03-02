@@ -1,164 +1,264 @@
-import { useState, useEffect, useReducer } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Key, Eye, EyeOff, Check, AlertCircle, SlidersHorizontal,
-  Play, Shield, Download, Trash2, FileText, ChevronRight, Loader2
+  Play, Shield, Download, Trash2, ChevronRight, Loader2
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { cn } from "@/lib/utils";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import type { Settings as SettingsType } from "@/types/electron";
 
 export default function Settings() {
   const navigate = useNavigate();
 
-  // ── Settings state via useReducer ──
-  type SettingsState = {
-    apiKey: string;
-    showApiKey: boolean;
-    validationState: 'idle' | 'success' | 'error';
-    isValidating: boolean;
-    isSaving: boolean;
-    isLoading: boolean;
-    playbackSpeed: string;
-  };
+  // ── Core state ──
+  const [apiKey, setApiKey] = useState('');
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [validationState, setValidationState] = useState<'idle' | 'success' | 'error'>('idle');
+  const [isValidating, setIsValidating] = useState(false);
+  const [isSavingApiKey, setIsSavingApiKey] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [playbackSpeed, setPlaybackSpeed] = useState('1');
 
-  type SettingsAction =
-    | { type: 'SET_API_KEY'; value: string }
-    | { type: 'TOGGLE_SHOW_API_KEY' }
-    | { type: 'SET_VALIDATION'; state: 'idle' | 'success' | 'error' }
-    | { type: 'SET_VALIDATING'; value: boolean }
-    | { type: 'SET_SAVING'; value: boolean }
-    | { type: 'SET_LOADING'; value: boolean }
-    | { type: 'SET_PLAYBACK_SPEED'; value: string }
-    | { type: 'SETTINGS_LOADED'; apiKey?: string; playbackSpeed?: string };
+  // Toggle preferences — each auto-saves independently
+  const [autoFieldGuide, setAutoFieldGuide] = useState(true);
+  const [autoQuiz, setAutoQuiz] = useState(true);
+  const [srsEnabled, setSrsEnabled] = useState(true);
 
-  const [state, dispatch] = useReducer(
-    (s: SettingsState, action: SettingsAction): SettingsState => {
-      switch (action.type) {
-        case 'SET_API_KEY':
-          return { ...s, apiKey: action.value, validationState: 'idle' };
-        case 'TOGGLE_SHOW_API_KEY':
-          return { ...s, showApiKey: !s.showApiKey };
-        case 'SET_VALIDATION':
-          return { ...s, validationState: action.state };
-        case 'SET_VALIDATING':
-          return { ...s, isValidating: action.value };
-        case 'SET_SAVING':
-          return { ...s, isSaving: action.value };
-        case 'SET_LOADING':
-          return { ...s, isLoading: action.value };
-        case 'SET_PLAYBACK_SPEED':
-          return { ...s, playbackSpeed: action.value };
-        case 'SETTINGS_LOADED':
-          return {
-            ...s,
-            isLoading: false,
-            apiKey: action.apiKey || s.apiKey,
-            playbackSpeed: action.playbackSpeed || s.playbackSpeed,
-          };
-        default:
-          return s;
-      }
-    },
-    {
-      apiKey: '',
-      showApiKey: false,
-      validationState: 'idle' as const,
-      isValidating: false,
-      isSaving: false,
-      isLoading: true,
-      playbackSpeed: '1',
-    }
-  );
+  // Toast notification state
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-  const { apiKey, showApiKey, validationState, isValidating, isSaving, isLoading, playbackSpeed } = state;
+  // Confirm dialog state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    variant?: 'danger' | 'default';
+    confirmLabel?: string;
+  }>({ isOpen: false, title: '', message: '', onConfirm: () => { } });
 
-  const [preferences, setPreferences] = useState({
-    autoGenerateFieldGuides: true,
-    showComprehensionQuizzes: true,
-    enableSpacedRepetition: true,
-    darkMode: true,
-  });
-
-  // Load settings on mount
-  useEffect(() => {
-    async function loadSettings() {
-      try {
-        if (window.atlased) {
-          const [geminiKey, speed, autoQuiz, srsEnabled] = await Promise.all([
-            window.atlased.settings.get('gemini_api_key'),
-            window.atlased.settings.get('playback_speed'),
-            window.atlased.settings.get('auto_quiz'),
-            window.atlased.settings.get('srs_enabled'),
-          ]);
-
-          dispatch({
-            type: 'SETTINGS_LOADED',
-            apiKey: geminiKey || undefined,
-            playbackSpeed: speed ? String(speed) : undefined,
-          });
-
-          setPreferences(prev => ({
-            ...prev,
-            autoGenerateFieldGuides: autoQuiz ?? true,
-            showComprehensionQuizzes: autoQuiz ?? true,
-            enableSpacedRepetition: srsEnabled ?? true,
-          }));
-        } else {
-          dispatch({ type: 'SET_LOADING', value: false });
-        }
-      } catch (error) {
-        console.error("Error loading settings:", error);
-        dispatch({ type: 'SET_LOADING', value: false });
-      }
-    }
-    loadSettings();
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
   }, []);
 
+  // ── Helper: save a single setting with error handling ──
+  const saveSetting = useCallback(async (key: keyof SettingsType, value: unknown): Promise<boolean> => {
+    try {
+      if (!window.atlased) return false;
+      const result = await window.atlased.settings.set(key, value as any);
+      console.log(`[Settings] Saved ${key} =`, value, result);
+      return true;
+    } catch (error) {
+      console.error(`[Settings] Failed to save ${key}:`, error);
+      return false;
+    }
+  }, []);
+
+  // ── Helper: load a single setting with error handling ──
+  const loadSetting = useCallback(async <T,>(key: keyof SettingsType, fallback: T): Promise<T> => {
+    try {
+      if (!window.atlased) return fallback;
+      const value = await window.atlased.settings.get(key);
+      console.log(`[Settings] Loaded ${key} =`, value);
+      // Return fallback if value is null/undefined
+      return (value !== null && value !== undefined) ? value as T : fallback;
+    } catch (error) {
+      console.error(`[Settings] Failed to load ${key}:`, error);
+      return fallback;
+    }
+  }, []);
+
+  // ── Load all settings on mount ──
+  useEffect(() => {
+    async function loadAllSettings() {
+      try {
+        // Load each setting independently — one failure doesn't block others
+        const [key, speed, quiz, fieldGuide, srs] = await Promise.all([
+          loadSetting('gemini_api_key', ''),
+          loadSetting('playback_speed', 1),
+          loadSetting('auto_quiz', true),
+          loadSetting('auto_field_guide', true),
+          loadSetting('srs_enabled', true),
+        ]);
+
+        setApiKey(key);
+        setPlaybackSpeed(String(speed));
+        setAutoQuiz(quiz);
+        setAutoFieldGuide(fieldGuide);
+        setSrsEnabled(srs);
+      } catch (error) {
+        console.error("[Settings] Unexpected error loading settings:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadAllSettings();
+  }, [loadSetting]);
+
+  // ── API Key: Validate ──
   const handleValidate = async () => {
     if (!apiKey) {
-      dispatch({ type: 'SET_VALIDATION', state: 'error' });
+      setValidationState('error');
       return;
     }
 
-    dispatch({ type: 'SET_VALIDATING', value: true });
+    setIsValidating(true);
     try {
       if (window.atlased) {
         const result = await window.atlased.ai.validateApiKey(apiKey);
-        dispatch({ type: 'SET_VALIDATION', state: result.valid ? 'success' : 'error' });
+        setValidationState(result.valid ? 'success' : 'error');
       }
     } catch (error) {
       console.error("API key validation error:", error);
-      dispatch({ type: 'SET_VALIDATION', state: 'error' });
+      setValidationState('error');
     } finally {
-      dispatch({ type: 'SET_VALIDATING', value: false });
+      setIsValidating(false);
     }
   };
 
-  const handleSave = async () => {
-    dispatch({ type: 'SET_SAVING', value: true });
+  // ── API Key: Save ──
+  const handleSaveApiKey = async () => {
+    setIsSavingApiKey(true);
+    const success = await saveSetting('gemini_api_key', apiKey);
+    setIsSavingApiKey(false);
+    if (success) {
+      showToast("API key saved");
+    } else {
+      showToast("Failed to save API key", "error");
+    }
+  };
+
+  // ── Toggle handlers: auto-save immediately ──
+  const handleToggleAutoFieldGuide = async () => {
+    const newValue = !autoFieldGuide;
+    setAutoFieldGuide(newValue);
+    const success = await saveSetting('auto_field_guide', newValue);
+    if (!success) {
+      setAutoFieldGuide(!newValue); // revert on failure
+      showToast("Failed to save setting", "error");
+    }
+  };
+
+  const handleToggleAutoQuiz = async () => {
+    const newValue = !autoQuiz;
+    setAutoQuiz(newValue);
+    const success = await saveSetting('auto_quiz', newValue);
+    if (!success) {
+      setAutoQuiz(!newValue);
+      showToast("Failed to save setting", "error");
+    }
+  };
+
+  const handleToggleSrs = async () => {
+    const newValue = !srsEnabled;
+    setSrsEnabled(newValue);
+    const success = await saveSetting('srs_enabled', newValue);
+    if (!success) {
+      setSrsEnabled(!newValue);
+      showToast("Failed to save setting", "error");
+    }
+  };
+
+  // ── Playback speed: auto-save on change ──
+  const handleSetPlaybackSpeed = async (speed: string) => {
+    setPlaybackSpeed(speed);
+    const success = await saveSetting('playback_speed', parseFloat(speed));
+    if (success) {
+      showToast(`Playback speed set to ${speed}x`);
+    } else {
+      showToast("Failed to save playback speed", "error");
+    }
+  };
+
+  // ── Export data ──
+  const handleExportData = async () => {
+    if (!window.atlased) return;
     try {
-      if (window.atlased) {
-        await Promise.all([
-          window.atlased.settings.set('gemini_api_key', apiKey),
-          window.atlased.settings.set('playback_speed', parseFloat(playbackSpeed)),
-          window.atlased.settings.set('auto_quiz', preferences.showComprehensionQuizzes),
-          window.atlased.settings.set('srs_enabled', preferences.enableSpacedRepetition),
-        ]);
+      const expeditions = await window.atlased.expeditions.getAll();
+      const allData: Record<string, unknown> = { expeditions: [] };
+
+      for (const exp of expeditions || []) {
+        const waypoints = await window.atlased.waypoints.getAll(exp.id);
+        const waypointData = [];
+
+        for (const wp of waypoints || []) {
+          const fieldGuide = await window.atlased.fieldGuides.get(wp.id);
+          const note = await window.atlased.notes.get(wp.id);
+          const bookmarks = await window.atlased.bookmarks.getAll(wp.id);
+          waypointData.push({
+            ...wp,
+            fieldGuide: fieldGuide || null,
+            note: note?.content || null,
+            bookmarks: bookmarks || [],
+          });
+        }
+
+        (allData.expeditions as unknown[]).push({
+          ...exp,
+          waypoints: waypointData,
+        });
       }
+
+      allData.exportedAt = new Date().toISOString();
+      allData.version = "1.0.0";
+
+      const blob = new Blob([JSON.stringify(allData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `atlased-export-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      showToast("Data exported successfully");
     } catch (error) {
-      console.error("Error saving settings:", error);
-    } finally {
-      dispatch({ type: 'SET_SAVING', value: false });
+      console.error("Export error:", error);
+      showToast("Failed to export data", "error");
     }
   };
 
-  const togglePreference = (key: keyof typeof preferences) => {
-    setPreferences(prev => ({ ...prev, [key]: !prev[key] }));
+  // ── Clear cache ──
+  const handleClearCache = async () => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Clear Cache',
+      message: 'This will clear all cached transcripts. Your expeditions, notes, and progress will NOT be deleted.',
+      confirmLabel: 'Clear Cache',
+      variant: 'danger',
+      onConfirm: async () => {
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        try {
+          if (window.atlased) {
+            const expeditions = await window.atlased.expeditions.getAll();
+            let cleared = 0;
+            for (const exp of expeditions || []) {
+              const waypoints = await window.atlased.waypoints.getAll(exp.id);
+              for (const wp of waypoints || []) {
+                if (wp.transcript_text) {
+                  await window.atlased.waypoints.updateTranscript(wp.id, '');
+                  cleared++;
+                }
+              }
+            }
+            showToast(`Cleared cached data from ${cleared} waypoint${cleared !== 1 ? 's' : ''}`);
+          }
+        } catch (error) {
+          console.error("Clear cache error:", error);
+          showToast("Failed to clear cache", "error");
+        }
+      }
+    });
   };
 
+  // ── Loading state ──
   if (isLoading) {
     return (
-      <AppLayout headerProps={{ showBack: true, backLabel: "Back", backTo: "/" }}>
+      <AppLayout headerProps={{ showBack: true, backLabel: "Back" }}>
         <div className="flex-1 flex items-center justify-center">
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="w-8 h-8 text-atlas-gold animate-spin" />
@@ -169,9 +269,31 @@ export default function Settings() {
     );
   }
 
+  // ── Toggle items config ──
+  const toggleItems = [
+    {
+      title: "Auto-generate Field Guides",
+      desc: "Automatically create comprehensive notes from video content",
+      value: autoFieldGuide,
+      onToggle: handleToggleAutoFieldGuide,
+    },
+    {
+      title: "Show Comprehension Quizzes",
+      desc: "Pause videos to test understanding at key moments",
+      value: autoQuiz,
+      onToggle: handleToggleAutoQuiz,
+    },
+    {
+      title: "Enable Spaced Repetition",
+      desc: "Schedule Memory Checkpoints for optimal retention",
+      value: srsEnabled,
+      onToggle: handleToggleSrs,
+    },
+  ];
+
   return (
     <AppLayout
-      headerProps={{ showBack: true, backLabel: "Back", backTo: "/" }}
+      headerProps={{ showBack: true, backLabel: "Back" }}
     >
       <main className="max-w-4xl mx-auto px-8 py-10 w-full">
         {/* Page Header */}
@@ -180,7 +302,7 @@ export default function Settings() {
           <p className="text-atlas-text-secondary text-base">Configure your AtlasED experience and learning preferences</p>
         </div>
 
-        <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
+        <div className="space-y-6">
           {/* API Configuration */}
           <section className="bg-atlas-bg-secondary rounded-xl border border-atlas-border overflow-hidden">
             <div className="px-6 py-5 border-b border-atlas-border">
@@ -205,14 +327,15 @@ export default function Settings() {
                     type={showApiKey ? "text" : "password"}
                     value={apiKey}
                     onChange={(e) => {
-                      dispatch({ type: 'SET_API_KEY', value: e.target.value });
+                      setApiKey(e.target.value);
+                      setValidationState('idle');
                     }}
                     placeholder="Enter your Gemini API key"
                     className="w-full bg-atlas-bg-tertiary border border-atlas-border rounded-xl px-4 py-3.5 pr-32 text-atlas-text-primary placeholder-atlas-text-muted focus:outline-none focus:border-atlas-gold/50 input-glow transition-all duration-200 font-mono text-sm"
                   />
                   <button
                     type="button"
-                    onClick={() => dispatch({ type: 'TOGGLE_SHOW_API_KEY' })}
+                    onClick={() => setShowApiKey(!showApiKey)}
                     className="absolute right-[6.5rem] top-1/2 -translate-y-1/2 p-2 text-atlas-text-muted hover:text-atlas-text-primary transition-colors"
                   >
                     {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -228,7 +351,11 @@ export default function Settings() {
                 </div>
                 <p className="text-atlas-text-muted text-xs mt-2">
                   Your API key is stored locally and encrypted.{" "}
-                  <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-atlas-gold hover:underline">Get an API key</a>
+                  <button
+                    type="button"
+                    onClick={() => window.atlased?.openExternal('https://aistudio.google.com/apikey')}
+                    className="text-atlas-gold hover:underline"
+                  >Get an API key</button>
                 </p>
 
                 {/* Validation States */}
@@ -244,11 +371,22 @@ export default function Settings() {
                     <span>Invalid API key. Please check and try again.</span>
                   </div>
                 )}
+
+                {/* Save API Key Button */}
+                <button
+                  type="button"
+                  onClick={handleSaveApiKey}
+                  disabled={isSavingApiKey}
+                  className="mt-4 px-5 py-2 rounded-lg bg-atlas-gold text-atlas-bg-primary font-display font-bold text-sm hover:bg-atlas-gold-hover transition-all duration-200 flex items-center gap-2 disabled:opacity-50"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  {isSavingApiKey ? "Saving..." : "Save API Key"}
+                </button>
               </div>
             </div>
           </section>
 
-          {/* Learning Preferences */}
+          {/* Learning Preferences — toggles auto-save */}
           <section className="bg-atlas-bg-secondary rounded-xl border border-atlas-border overflow-hidden">
             <div className="px-6 py-5 border-b border-atlas-border">
               <div className="flex items-center gap-3">
@@ -257,19 +395,13 @@ export default function Settings() {
                 </div>
                 <div>
                   <h2 className="font-display font-bold text-lg text-atlas-text-primary">Learning Preferences</h2>
-                  <p className="text-atlas-text-muted text-sm">Customize how AtlasED enhances your learning</p>
+                  <p className="text-atlas-text-muted text-sm">Changes are saved automatically</p>
                 </div>
               </div>
             </div>
             <div className="p-6 space-y-4">
-              {/* Toggle Items */}
-              {[
-                { key: 'autoGenerateFieldGuides' as const, title: "Auto-generate Field Guides", desc: "Automatically create comprehensive notes from video content" },
-                { key: 'showComprehensionQuizzes' as const, title: "Show Comprehension Quizzes", desc: "Pause videos to test understanding at key moments" },
-                { key: 'enableSpacedRepetition' as const, title: "Enable Spaced Repetition", desc: "Schedule Memory Checkpoints for optimal retention" },
-                { key: 'darkMode' as const, title: "Dark Mode", desc: "Use dark theme throughout the application" },
-              ].map((item, index, arr) => (
-                <div key={item.key}>
+              {toggleItems.map((item, index) => (
+                <div key={item.title}>
                   <div className="flex items-center justify-between py-2">
                     <div>
                       <h3 className="font-medium text-atlas-text-primary">{item.title}</h3>
@@ -277,29 +409,29 @@ export default function Settings() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => togglePreference(item.key)}
+                      onClick={item.onToggle}
                       className={cn(
                         "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-                        preferences[item.key] ? "bg-atlas-gold" : "bg-atlas-bg-tertiary border border-atlas-border"
+                        item.value ? "bg-atlas-gold" : "bg-atlas-bg-tertiary border border-atlas-border"
                       )}
                     >
                       <span
                         className={cn(
                           "inline-block h-5 w-5 transform rounded-full transition-transform",
-                          preferences[item.key]
+                          item.value
                             ? "translate-x-[22px] bg-atlas-text-primary"
                             : "translate-x-[2px] bg-atlas-text-secondary"
                         )}
                       />
                     </button>
                   </div>
-                  {index < arr.length - 1 && <div className="h-px bg-atlas-border" />}
+                  {index < toggleItems.length - 1 && <div className="h-px bg-atlas-border" />}
                 </div>
               ))}
             </div>
           </section>
 
-          {/* Playback Speed */}
+          {/* Playback Speed — auto-saves on click */}
           <section className="bg-atlas-bg-secondary rounded-xl border border-atlas-border overflow-hidden">
             <div className="px-6 py-5 border-b border-atlas-border">
               <div className="flex items-center gap-3">
@@ -308,7 +440,7 @@ export default function Settings() {
                 </div>
                 <div>
                   <h2 className="font-display font-bold text-lg text-atlas-text-primary">Default Playback Speed</h2>
-                  <p className="text-atlas-text-muted text-sm">Set your preferred video playback speed</p>
+                  <p className="text-atlas-text-muted text-sm">Applied to all new videos automatically</p>
                 </div>
               </div>
             </div>
@@ -318,7 +450,7 @@ export default function Settings() {
                   <button
                     key={speed}
                     type="button"
-                    onClick={() => dispatch({ type: 'SET_PLAYBACK_SPEED', value: speed })}
+                    onClick={() => handleSetPlaybackSpeed(speed)}
                     className={cn(
                       "flex flex-col items-center justify-center py-4 px-4 rounded-xl transition-all duration-200",
                       playbackSpeed === speed
@@ -353,6 +485,7 @@ export default function Settings() {
             <div className="p-6 space-y-4">
               <button
                 type="button"
+                onClick={handleExportData}
                 className="w-full flex items-center justify-between p-4 bg-atlas-bg-tertiary border border-atlas-border rounded-xl hover:border-atlas-gold/50 hover:bg-atlas-bg-tertiary/80 transition-all duration-200 group"
               >
                 <div className="flex items-center gap-3">
@@ -369,6 +502,7 @@ export default function Settings() {
 
               <button
                 type="button"
+                onClick={handleClearCache}
                 className="w-full flex items-center justify-between p-4 bg-atlas-bg-tertiary border border-atlas-border rounded-xl hover:border-atlas-gold/50 hover:bg-atlas-bg-tertiary/80 transition-all duration-200 group"
               >
                 <div className="flex items-center gap-3">
@@ -377,52 +511,53 @@ export default function Settings() {
                   </div>
                   <div className="text-left">
                     <h3 className="font-medium text-atlas-text-primary">Clear Cache</h3>
-                    <p className="text-atlas-text-muted text-sm">Remove temporary files and cached video data</p>
+                    <p className="text-atlas-text-muted text-sm">Remove cached transcripts to free up space</p>
                   </div>
                 </div>
                 <ChevronRight className="w-5 h-5 text-atlas-text-muted" />
               </button>
 
-              <button type="button" className="flex items-center justify-center gap-2 py-3 text-atlas-text-secondary hover:text-atlas-gold transition-colors text-sm w-full">
-                <FileText className="w-4 h-4" />
-                <span>View Privacy Policy</span>
-              </button>
+              <div className="flex items-center justify-center gap-2 py-3 text-atlas-text-muted text-xs">
+                <Shield className="w-3.5 h-3.5" />
+                <span>All data is stored locally on your device. Nothing is sent to external servers except AI API calls.</span>
+              </div>
             </div>
           </section>
-
-          {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-4 pt-4">
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="px-6 py-2.5 rounded-lg border border-atlas-border text-atlas-text-secondary font-medium hover:text-atlas-text-primary hover:border-atlas-text-muted transition-all duration-200"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              onClick={handleSave}
-              disabled={isSaving}
-              className="px-6 py-2.5 rounded-lg bg-atlas-gold text-atlas-bg-primary font-display font-bold hover:bg-atlas-gold-hover transition-all duration-200 flex items-center gap-2 disabled:opacity-50"
-            >
-              <Check className="w-4 h-4" />
-              {isSaving ? "Saving..." : "Save Changes"}
-            </button>
-          </div>
-        </form>
+        </div>
 
         {/* Footer */}
         <footer className="mt-12 pt-8 border-t border-atlas-border">
           <div className="flex items-center justify-between text-atlas-text-muted text-sm">
             <p>AtlasED v1.0.0</p>
             <div className="flex items-center gap-4">
-              <button type="button" className="hover:text-atlas-gold transition-colors">Documentation</button>
-              <button type="button" className="hover:text-atlas-gold transition-colors">Support</button>
-              <button type="button" className="hover:text-atlas-gold transition-colors">GitHub</button>
+              <button type="button" onClick={() => window.atlased?.openExternal('https://github.com/cookiemp/AtlasED')} className="hover:text-atlas-gold transition-colors">GitHub</button>
             </div>
           </div>
         </footer>
       </main>
+
+      {/* Toast Notification */}
+      {toast && (
+        <div className={cn(
+          "fixed bottom-6 right-6 px-5 py-3 rounded-xl shadow-2xl border flex items-center gap-3 z-50",
+          toast.type === 'success'
+            ? "bg-atlas-bg-secondary border-atlas-success/30 text-atlas-success"
+            : "bg-atlas-bg-secondary border-atlas-error/30 text-atlas-error"
+        )}>
+          {toast.type === 'success' ? <Check className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+          <span className="text-sm font-medium">{toast.message}</span>
+        </div>
+      )}
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmLabel={confirmDialog.confirmLabel}
+        variant={confirmDialog.variant}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+      />
     </AppLayout>
   );
 }

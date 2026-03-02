@@ -31,6 +31,7 @@ interface FieldGuidePanelProps {
     quizQuestions: QuizQuestion[];
     onGenerate: () => void;
     onOpenQuiz: () => void;
+    showQuizButton?: boolean; // controlled by auto_quiz setting
 }
 
 export function FieldGuidePanel({
@@ -39,6 +40,7 @@ export function FieldGuidePanel({
     quizQuestions,
     onGenerate,
     onOpenQuiz,
+    showQuizButton = true,
 }: FieldGuidePanelProps) {
     if (isGenerating) {
         return (
@@ -172,7 +174,7 @@ export function FieldGuidePanel({
             )}
 
             {/* Take Quiz Button */}
-            {quizQuestions.length > 0 && (
+            {showQuizButton && quizQuestions.length > 0 && (
                 <div className="pt-4 border-t border-atlas-border">
                     <button
                         onClick={onOpenQuiz}

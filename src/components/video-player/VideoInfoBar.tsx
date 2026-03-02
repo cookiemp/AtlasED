@@ -91,7 +91,7 @@ export function VideoInfoBar({
         return `${m}:${String(s).padStart(2, '0')}`;
     };
 
-    const timedQuizzes = quizQuestions.filter(q => q.timestamp_seconds);
+    const timedQuizzes = autoQuizEnabled ? quizQuestions.filter(q => q.timestamp_seconds) : [];
     const completedQuizzes = timedQuizzes.filter(q => q.timestamp_seconds && quizResults.has(q.timestamp_seconds));
     const hasTimeline = videoDuration && videoDuration > 0;
 
@@ -185,8 +185,8 @@ export function VideoInfoBar({
                             style={{ width: `${Math.min(100, (currentVideoTime / videoDuration) * 100)}%` }}
                         />
 
-                        {/* Quiz markers */}
-                        {quizQuestions.map((q) => {
+                        {/* Quiz markers — only shown when quizzes are enabled */}
+                        {autoQuizEnabled && quizQuestions.map((q) => {
                             if (!q.timestamp_seconds) return null;
                             const position = (q.timestamp_seconds / videoDuration) * 100;
                             const result = quizResults.get(q.timestamp_seconds);

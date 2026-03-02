@@ -11,6 +11,9 @@ contextBridge.exposeInMainWorld('atlased', {
         close: () => ipcRenderer.invoke('window:close')
     },
 
+    // Open external URL in default browser
+    openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
+
     // Settings
     settings: {
         get: (key) => ipcRenderer.invoke('settings:get', key),
@@ -94,7 +97,8 @@ contextBridge.exposeInMainWorld('atlased', {
         generateQuizzes: (transcript, videoTitle) => ipcRenderer.invoke('ai:generateQuizzes', transcript, videoTitle),
         validateApiKey: (apiKey) => ipcRenderer.invoke('ai:validateApiKey', apiKey),
         fetchPlaylist: (url) => ipcRenderer.invoke('ai:fetchPlaylist', url),
-        chat: (message, transcript, videoTitle, previousMessages) => ipcRenderer.invoke('ai:chat', message, transcript, videoTitle, previousMessages)
+        chat: (message, transcript, videoTitle, previousMessages) => ipcRenderer.invoke('ai:chat', message, transcript, videoTitle, previousMessages),
+        generateExpeditionSummary: (videoTitles) => ipcRenderer.invoke('ai:generateExpeditionSummary', videoTitles)
     }
 });
 

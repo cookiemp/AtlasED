@@ -3,15 +3,15 @@ import { v4 as uuidv4 } from 'uuid';
 
 // ============ Expeditions ============
 
-export function createExpedition({ title, thumbnail_url, playlist_url }) {
+export function createExpedition({ title, description, thumbnail_url, playlist_url }) {
     const db = getDatabase();
     const id = uuidv4();
     const stmt = db.prepare(`
-    INSERT INTO expeditions (id, title, thumbnail_url, playlist_url)
-    VALUES (?, ?, ?, ?)
+    INSERT INTO expeditions (id, title, description, thumbnail_url, playlist_url)
+    VALUES (?, ?, ?, ?, ?)
   `);
-    stmt.run(id, title, thumbnail_url || null, playlist_url || null);
-    return { id, title, thumbnail_url, playlist_url };
+    stmt.run(id, title, description || null, thumbnail_url || null, playlist_url || null);
+    return { id, title, description, thumbnail_url, playlist_url };
 }
 
 export function getExpeditions() {
@@ -32,16 +32,17 @@ export function getExpedition(id) {
     return db.prepare('SELECT * FROM expeditions WHERE id = ?').get(id);
 }
 
-export function updateExpedition(id, { title, thumbnail_url }) {
+export function updateExpedition(id, { title, description, thumbnail_url }) {
     const db = getDatabase();
     const stmt = db.prepare(`
     UPDATE expeditions 
-    SET title = COALESCE(?, title), 
+    SET title = COALESCE(?, title),
+        description = COALESCE(?, description),
         thumbnail_url = COALESCE(?, thumbnail_url),
         updated_at = datetime('now')
     WHERE id = ?
   `);
-    stmt.run(title, thumbnail_url, id);
+    stmt.run(title, description, thumbnail_url, id);
     return getExpedition(id);
 }
 

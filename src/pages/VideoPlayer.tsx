@@ -62,8 +62,11 @@ export default function VideoPlayer() {
   const [noteSaveStatus, setNoteSaveStatus] = useState<'saved' | 'saving' | 'idle'>('idle');
   const [allWaypoints, setAllWaypoints] = useState<DbWaypoint[]>([]);
   const [autoQuizEnabled, setAutoQuizEnabled] = useState(true);
+  const [autoFieldGuideEnabled, setAutoFieldGuideEnabled] = useState(true);
   const [quizToast, setQuizToast] = useState<string | null>(null);
   const [bookmarks, setBookmarks] = useState<DbBookmark[]>([]);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const autoFieldGuideTriggeredRef = useRef(false);
   const noteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playerRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -237,18 +240,47 @@ export default function VideoPlayer() {
     }
   }, [id]);
 
-  // Load auto_quiz setting
+  // Load settings: auto_quiz, auto_field_guide, playback_speed
   useEffect(() => {
-    async function loadQuizSetting() {
+    async function loadSettings() {
       try {
         if (window.atlased) {
-          const autoQuiz = await window.atlased.settings.get('auto_quiz');
+          const [autoQuiz, autoFG, speed] = await Promise.all([
+            window.atlased.settings.get('auto_quiz'),
+            window.atlased.settings.get('auto_field_guide'),
+            window.atlased.settings.get('playback_speed'),
+          ]);
           setAutoQuizEnabled(autoQuiz !== false); // default to true
+          setAutoFieldGuideEnabled(autoFG !== false); // default to true
+          if (speed && typeof speed === 'number') {
+            setPlaybackSpeed(speed);
+          }
         }
       } catch { /* use default */ }
     }
-    loadQuizSetting();
+    loadSettings();
   }, []);
+
+  // Auto-generate field guide when waypoint loads without one
+  useEffect(() => {
+    if (
+      autoFieldGuideEnabled &&
+      waypoint &&
+      !fieldGuide &&
+      !isGeneratingGuide &&
+      !isLoading &&
+      !autoFieldGuideTriggeredRef.current
+    ) {
+      autoFieldGuideTriggeredRef.current = true;
+      console.log('[VideoPlayer] Auto-generating field guide for', waypoint.title);
+      handleGenerateFieldGuide();
+    }
+  }, [autoFieldGuideEnabled, waypoint, fieldGuide, isGeneratingGuide, isLoading]);
+
+  // Reset auto-trigger ref when waypoint changes
+  useEffect(() => {
+    autoFieldGuideTriggeredRef.current = false;
+  }, [id]);
 
   useEffect(() => {
     loadWaypointData();
@@ -662,6 +694,16 @@ export default function VideoPlayer() {
     }
   };
 
+  // Apply playback speed to iframe whenever speed or video state changes
+  useEffect(() => {
+    if (videoState === 1 && playerRef.current?.contentWindow && playbackSpeed !== 1) {
+      playerRef.current.contentWindow.postMessage(
+        JSON.stringify({ event: 'command', func: 'setPlaybackRate', args: [playbackSpeed] }),
+        'https://www.youtube.com'
+      );
+    }
+  }, [videoState, playbackSpeed]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-atlas-bg-primary text-atlas-text-primary flex items-center justify-center">
@@ -683,7 +725,14 @@ export default function VideoPlayer() {
     );
   }
 
-  const youtubeEmbedUrl = `https://www.youtube.com/embed/${waypoint.youtube_id}?enablejsapi=1&rel=0&modestbranding=1&iv_load_policy=3&origin=${encodeURIComponent(window.location.origin)}${waypoint.last_watched_pos ? `&start=${Math.floor(waypoint.last_watched_pos)}` : ''}`;
+  // In production (file:// protocol), omit origin param — YouTube rejects file:// origins
+  // In dev mode (http://), include it for proper JS API communication
+  const isFileProtocol = window.location.protocol === 'file:';
+  const originParam = isFileProtocol ? '' : `&origin=${encodeURIComponent(window.location.origin)}`;
+  const startParam = waypoint.last_watched_pos ? `&start=${Math.floor(waypoint.last_watched_pos)}` : '';
+  const youtubeEmbedUrl = `https://www.youtube.com/embed/${waypoint.youtube_id}?enablejsapi=1&rel=0&modestbranding=1&iv_load_policy=3${originParam}${startParam}`;
+
+
 
   // Initialize YouTube IFrame API communication when iframe loads
   const handleIframeLoad = () => {
@@ -701,6 +750,18 @@ export default function VideoPlayer() {
     setTimeout(sendListening, 500);
     setTimeout(sendListening, 1500);
     setTimeout(sendListening, 3000);
+
+    // Apply playback speed after iframe initializes
+    if (playbackSpeed !== 1) {
+      setTimeout(() => {
+        if (playerRef.current?.contentWindow) {
+          playerRef.current.contentWindow.postMessage(
+            JSON.stringify({ event: 'command', func: 'setPlaybackRate', args: [playbackSpeed] }),
+            'https://www.youtube.com'
+          );
+        }
+      }, 2000);
+    }
   };
 
   // Resume playback by sending a command to the iframe
@@ -904,6 +965,7 @@ export default function VideoPlayer() {
               quizQuestions={quizQuestions}
               onGenerate={handleGenerateFieldGuide}
               onOpenQuiz={handleOpenQuiz}
+              showQuizButton={autoQuizEnabled}
             />
           )}
 

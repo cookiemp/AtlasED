@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
@@ -7,7 +7,7 @@ import { initDatabase } from './database/init.js';
 import * as queries from './database/queries.js';
 import Store from 'electron-store';
 import { fetchTranscriptWithFallback } from './services/transcript.js';
-import { generateFieldGuide, generateQuizzes, validateApiKey, chatWithAI } from './services/gemini.js';
+import { generateFieldGuide, generateQuizzes, validateApiKey, chatWithAI, generateExpeditionSummary } from './services/gemini.js';
 import ytpl from '@distube/ytpl';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -45,6 +45,7 @@ const STORE_SCHEMA = {
     gemini_api_key: { type: 'string', default: '' },
     theme: { type: 'string', default: 'dark' },
     auto_quiz: { type: 'boolean', default: true },
+    auto_field_guide: { type: 'boolean', default: true },
     playback_speed: { type: 'number', default: 1.0 },
     srs_enabled: { type: 'boolean', default: true },
     srs_intervals: { type: 'array', default: [1, 3, 7, 14] }
@@ -210,10 +211,41 @@ ipcMain.handle('window:maximize', () => {
 });
 ipcMain.handle('window:close', () => mainWindow.close());
 
+// Shell: open external URLs in default browser
+ipcMain.handle('shell:openExternal', (_, url) => {
+    // Only allow http/https URLs for security
+    if (url && (url.startsWith('https://') || url.startsWith('http://'))) {
+        return shell.openExternal(url);
+    }
+});
+
 // Settings
-ipcMain.handle('settings:get', (_, key) => store.get(key));
-ipcMain.handle('settings:set', (_, key, value) => store.set(key, value));
-ipcMain.handle('settings:getAll', () => store.store);
+ipcMain.handle('settings:get', (_, key) => {
+    try {
+        const value = store.get(key);
+        return value;
+    } catch (error) {
+        console.error(`[Settings] Error getting "${key}":`, error.message);
+        return undefined;
+    }
+});
+ipcMain.handle('settings:set', (_, key, value) => {
+    try {
+        store.set(key, value);
+        return { success: true };
+    } catch (error) {
+        console.error(`[Settings] Error setting "${key}":`, error.message);
+        return { success: false, error: error.message };
+    }
+});
+ipcMain.handle('settings:getAll', () => {
+    try {
+        return store.store;
+    } catch (error) {
+        console.error('[Settings] Error getting all:', error.message);
+        return {};
+    }
+});
 
 // Database: Expeditions
 ipcMain.handle('db:createExpedition', (_, data) => queries.createExpedition(data));
@@ -347,6 +379,20 @@ ipcMain.handle('ai:generateQuizzes', async (_, transcript, videoTitle) => {
         return await generateQuizzes(apiKey, transcript, videoTitle);
     } catch (error) {
         console.error('Quiz generation error:', error);
+        return { success: false, error: error.message };
+    }
+});
+
+// Expedition summary generation
+ipcMain.handle('ai:generateExpeditionSummary', async (_, videoTitles) => {
+    try {
+        const apiKey = store.get('gemini_api_key');
+        if (!apiKey) {
+            return { success: false, error: 'No Gemini API key configured' };
+        }
+        return await generateExpeditionSummary(apiKey, videoTitles);
+    } catch (error) {
+        console.error('Expedition summary generation error:', error);
         return { success: false, error: error.message };
     }
 });

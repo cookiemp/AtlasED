@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { HashRouter, Routes, Route } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { CommandPalette } from "@/components/CommandPalette";
 import Dashboard from "./pages/Dashboard";
@@ -37,7 +37,7 @@ function App() {
         <TooltipProvider>
           <Toaster />
           <Sonner />
-          <BrowserRouter>
+          <HashRouter>
             <CommandPalette isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
             <Routes>
               <Route path="/" element={<Dashboard />} />
@@ -48,7 +48,7 @@ function App() {
               <Route path="/atlas" element={<KnowledgeGraph />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
-          </BrowserRouter>
+          </HashRouter>
         </TooltipProvider>
       </ErrorBoundary>
     </QueryClientProvider>

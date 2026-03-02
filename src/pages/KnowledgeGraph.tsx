@@ -104,7 +104,10 @@ export default function KnowledgeGraph() {
 
   // Load real data from database
   const loadGraphData = useCallback(async () => {
-    if (!window.atlased) return;
+    if (!window.atlased) {
+      dispatchGraph({ type: 'LOADED', nodes: [], links: [] });
+      return;
+    }
     dispatchGraph({ type: 'LOADING' });
     try {
       const data = await window.atlased.knowledgeGraph.getData();
@@ -384,29 +387,9 @@ export default function KnowledgeGraph() {
         </div>
 
         {/* Right Side */}
-        <div className="ml-auto flex items-center gap-3" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
-          <button
-            onClick={() => setShowLegend(!showLegend)}
-            className={cn(
-              "w-9 h-9 rounded-lg border flex items-center justify-center transition-all duration-200",
-              showLegend
-                ? "bg-atlas-gold/10 border-atlas-gold/50 text-atlas-gold"
-                : "bg-atlas-bg-tertiary border-atlas-border hover:border-atlas-gold/50 text-atlas-text-secondary"
-            )}
-            title="Toggle Legend"
-          >
-            <Info className="w-[18px] h-[18px]" />
-          </button>
-          <button
-            onClick={handleResetView}
-            className="w-9 h-9 rounded-lg bg-atlas-bg-tertiary border border-atlas-border hover:border-atlas-gold/50 flex items-center justify-center transition-all duration-200"
-            title="Reset View"
-          >
-            <Maximize className="w-[18px] h-[18px] text-atlas-text-secondary" />
-          </button>
-
+        <div className="ml-auto flex items-center" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
           {/* Divider before window controls */}
-          <div className="w-px h-6 bg-atlas-border ml-1" />
+          <div className="w-px h-6 bg-atlas-border mr-3" />
 
           {/* Window Controls */}
           <WindowControls />
@@ -474,65 +457,90 @@ export default function KnowledgeGraph() {
             </div>
           )}
 
-          {/* Legend Panel */}
-          {showLegend && (
-            <div className="absolute top-4 right-4 z-10 animate-slide-in">
-              <div className="glass-panel rounded-xl p-4 shadow-xl w-64">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <MapIcon className="w-4 h-4 text-atlas-gold" />
-                    <span className="font-display font-semibold text-atlas-text-primary text-sm">Legend</span>
-                  </div>
-                  <button
-                    onClick={() => setShowLegend(false)}
-                    className="text-atlas-text-muted hover:text-atlas-text-primary transition-colors"
-                  >
-                    <X className="w-[18px] h-[18px]" />
-                  </button>
-                </div>
+          {/* Map Controls — Legend + Reset View overlay */}
+          <div className="absolute top-4 right-4 z-10 flex flex-col items-end gap-3">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowLegend(!showLegend)}
+                className={cn(
+                  "w-9 h-9 rounded-lg border flex items-center justify-center transition-all duration-200 shadow-lg shadow-black/20",
+                  showLegend
+                    ? "bg-atlas-gold/10 border-atlas-gold/50 text-atlas-gold"
+                    : "bg-atlas-bg-secondary/90 backdrop-blur-sm border-atlas-border hover:border-atlas-gold/50 text-atlas-text-secondary hover:text-atlas-text-primary"
+                )}
+                title="Toggle Legend"
+              >
+                <Info className="w-[18px] h-[18px]" />
+              </button>
+              <button
+                onClick={handleResetView}
+                className="w-9 h-9 rounded-lg bg-atlas-bg-secondary/90 backdrop-blur-sm border border-atlas-border hover:border-atlas-gold/50 flex items-center justify-center transition-all duration-200 shadow-lg shadow-black/20 text-atlas-text-secondary hover:text-atlas-text-primary"
+                title="Reset View"
+              >
+                <Maximize className="w-[18px] h-[18px]" />
+              </button>
+            </div>
 
-                <div className="space-y-3">
-                  <div>
-                    <p className="font-body text-xs text-atlas-text-muted uppercase tracking-wider mb-2">Node Types</p>
-                    <div className="space-y-2">
-                      {Object.entries(categoryLabels).map(([key, label]) => (
-                        <div key={key} className="flex items-center gap-2">
-                          <div
-                            className="w-3 h-3 rounded-full border border-white/20"
-                            style={{ backgroundColor: categoryColors[key as keyof typeof categoryColors] }}
-                          />
-                          <span className="font-body text-xs text-atlas-text-secondary">{label}</span>
+            {/* Legend Panel */}
+            {showLegend && (
+              <div className="animate-slide-in">
+                <div className="glass-panel rounded-xl p-4 shadow-xl w-64">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <MapIcon className="w-4 h-4 text-atlas-gold" />
+                      <span className="font-display font-semibold text-atlas-text-primary text-sm">Legend</span>
+                    </div>
+                    <button
+                      onClick={() => setShowLegend(false)}
+                      className="text-atlas-text-muted hover:text-atlas-text-primary transition-colors"
+                    >
+                      <X className="w-[18px] h-[18px]" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <p className="font-body text-xs text-atlas-text-muted uppercase tracking-wider mb-2">Node Types</p>
+                      <div className="space-y-2">
+                        {Object.entries(categoryLabels).map(([key, label]) => (
+                          <div key={key} className="flex items-center gap-2">
+                            <div
+                              className="w-3 h-3 rounded-full border border-white/20"
+                              style={{ backgroundColor: categoryColors[key as keyof typeof categoryColors] }}
+                            />
+                            <span className="font-body text-xs text-atlas-text-secondary">{label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="border-t border-atlas-border pt-3">
+                      <p className="font-body text-xs text-atlas-text-muted uppercase tracking-wider mb-2">Connection Types</p>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-px bg-atlas-text-muted/40" />
+                          <span className="font-body text-xs text-atlas-text-secondary">Strong (2+ shared tags)</span>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="border-t border-atlas-border pt-3">
-                    <p className="font-body text-xs text-atlas-text-muted uppercase tracking-wider mb-2">Connection Types</p>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-px bg-atlas-text-muted/40" />
-                        <span className="font-body text-xs text-atlas-text-secondary">Strong (2+ shared tags)</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-px bg-atlas-gold/60 border-t border-dashed border-atlas-gold/60" />
-                        <span className="font-body text-xs text-atlas-text-secondary">Related (1 shared tag)</span>
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-px bg-atlas-gold/60 border-t border-dashed border-atlas-gold/60" />
+                          <span className="font-body text-xs text-atlas-text-secondary">Related (1 shared tag)</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="border-t border-atlas-border pt-3">
-                    <p className="font-body text-xs text-atlas-text-muted uppercase tracking-wider mb-2">Interactions</p>
-                    <div className="space-y-1.5">
-                      <p className="font-body text-xs text-atlas-text-muted">• Click node to view details</p>
-                      <p className="font-body text-xs text-atlas-text-muted">• Drag nodes to rearrange</p>
-                      <p className="font-body text-xs text-atlas-text-muted">• Scroll to zoom, drag to pan</p>
+                    <div className="border-t border-atlas-border pt-3">
+                      <p className="font-body text-xs text-atlas-text-muted uppercase tracking-wider mb-2">Interactions</p>
+                      <div className="space-y-1.5">
+                        <p className="font-body text-xs text-atlas-text-muted">• Click node to view details</p>
+                        <p className="font-body text-xs text-atlas-text-muted">• Drag nodes to rearrange</p>
+                        <p className="font-body text-xs text-atlas-text-muted">• Scroll to zoom, drag to pan</p>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Zoom Controls */}
           <div className="absolute bottom-4 left-4 z-10 flex flex-col gap-2">

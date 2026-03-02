@@ -20,22 +20,34 @@
   },
   "build": {
     "appId": "com.atlased.app",
-    "productName": "Atlased",
+    "productName": "AtlasED",
     "directories": {
       "output": "release"
     },
     "files": [
       "dist/**/*",
-      "electron/**/*"
+      "electron/**/*",
+      "node_modules/better-sqlite3/**/*",
+      "node_modules/bindings/**/*",
+      "node_modules/file-uri-to-path/**/*",
+      "node_modules/prebuild-install/**/*"
+    ],
+    "extraResources": [],
+    "asar": true,
+    "asarUnpack": [
+      "**/*.node",
+      "node_modules/better-sqlite3/**/*"
     ],
     "win": {
-      "target": "nsis",
-      "icon": "public/icon.ico"
+      "target": "nsis"
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
-    }
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": null,
+      "uninstallerIcon": null
+    },
+    "npmRebuild": true
   },
   "dependencies": {
     "@distube/ytpl": "^1.2.4",

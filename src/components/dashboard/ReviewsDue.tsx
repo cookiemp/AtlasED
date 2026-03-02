@@ -29,11 +29,20 @@ export function ReviewsDue() {
     const navigate = useNavigate();
     const [checkpoints, setCheckpoints] = useState<MemoryCheckpoint[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [srsEnabled, setSrsEnabled] = useState(true);
 
     useEffect(() => {
         async function load() {
             try {
                 if (window.atlased) {
+                    // Check if SRS is enabled in settings
+                    const enabled = await window.atlased.settings.get('srs_enabled');
+                    if (enabled === false) {
+                        setSrsEnabled(false);
+                        setIsLoading(false);
+                        return;
+                    }
+
                     const data = await window.atlased.memoryCheckpoints.getAll();
                     setCheckpoints(data || []);
                 }
@@ -45,6 +54,9 @@ export function ReviewsDue() {
         }
         load();
     }, []);
+
+    // If SRS is disabled, don't render the section at all
+    if (!srsEnabled) return null;
 
     const dueItems = checkpoints.filter((c) => c.isDue);
     const upcomingItems = checkpoints.filter((c) => !c.isDue).slice(0, 3);

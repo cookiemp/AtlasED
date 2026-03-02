@@ -1,4 +1,5 @@
 import { Compass, ArrowLeft, Settings, Network, Brain, Search } from "lucide-react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { WindowControls } from "@/components/WindowControls";
@@ -18,6 +19,20 @@ export function AppHeader({ showBack = true, backLabel = "Back", backTo, title, 
   const isAtlasPage = location.pathname === "/atlas";
   const isMemoryPage = location.pathname === "/memory";
   const isHome = location.pathname === "/";
+
+  // Load srs_enabled to conditionally show Memory nav
+  const [showMemory, setShowMemory] = useState(true);
+  useEffect(() => {
+    async function checkSrs() {
+      try {
+        if (window.atlased) {
+          const enabled = await window.atlased.settings.get('srs_enabled');
+          setShowMemory(enabled !== false);
+        }
+      } catch { /* show by default */ }
+    }
+    checkSrs();
+  }, []);
 
   const handleBack = () => {
     if (backTo) {
@@ -96,18 +111,20 @@ export function AppHeader({ showBack = true, backLabel = "Back", backTo, title, 
           )} />
           <span className="text-sm font-medium">The Atlas</span>
         </button>
-        <button
-          onClick={() => navigate("/memory")}
-          className={cn(
-            "flex items-center gap-2 text-atlas-text-secondary hover:text-atlas-text-primary transition-colors duration-200 group px-3 py-1.5 rounded-lg hover:bg-atlas-bg-tertiary",
-            isMemoryPage && "bg-atlas-gold/10 text-atlas-gold"
-          )}
-        >
-          <Brain className={cn(
-            "w-[18px] h-[18px] transition-transform duration-300",
-          )} />
-          <span className="text-sm font-medium">Memory</span>
-        </button>
+        {showMemory && (
+          <button
+            onClick={() => navigate("/memory")}
+            className={cn(
+              "flex items-center gap-2 text-atlas-text-secondary hover:text-atlas-text-primary transition-colors duration-200 group px-3 py-1.5 rounded-lg hover:bg-atlas-bg-tertiary",
+              isMemoryPage && "bg-atlas-gold/10 text-atlas-gold"
+            )}
+          >
+            <Brain className={cn(
+              "w-[18px] h-[18px] transition-transform duration-300",
+            )} />
+            <span className="text-sm font-medium">Memory</span>
+          </button>
+        )}
         <button
           onClick={() => navigate("/settings")}
           className={cn(

@@ -17,6 +17,7 @@ export function initDatabase() {
     CREATE TABLE IF NOT EXISTS expeditions (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
+      description TEXT,
       thumbnail_url TEXT,
       playlist_url TEXT,
       total_waypoints INTEGER DEFAULT 0,
@@ -112,6 +113,13 @@ export function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_notes_waypoint ON notes(waypoint_id);
     CREATE INDEX IF NOT EXISTS idx_bookmarks_waypoint ON bookmarks(waypoint_id);
   `);
+
+  // Migration: add description column for existing databases
+  try {
+    db.exec('ALTER TABLE expeditions ADD COLUMN description TEXT');
+  } catch (_) {
+    // Column already exists — safe to ignore
+  }
 
   console.log('Database initialized at:', dbPath);
   return db;

@@ -7,6 +7,8 @@ import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ReviewsDue } from "@/components/dashboard/ReviewsDue";
 import { LearningTips } from "@/components/dashboard/LearningTips";
 import { NewExpeditionModal } from "@/components/modals/NewExpeditionModal";
+import { ApiKeySetupModal } from "@/components/modals/ApiKeySetupModal";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import type { Expedition } from "@/types/expedition";
 import type { DbExpedition } from "@/types/electron";
 
@@ -49,6 +51,7 @@ export default function Dashboard() {
   const [expeditions, setExpeditions] = useState<Expedition[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showApiKeySetup, setShowApiKeySetup] = useState(false);
 
 
 
@@ -68,6 +71,20 @@ export default function Dashboard() {
 
   useEffect(() => {
     loadExpeditions();
+    // Check if API key is set — if not, show setup modal
+    async function checkApiKey() {
+      try {
+        if (window.atlased) {
+          const key = await window.atlased.settings.get('gemini_api_key');
+          if (!key) {
+            setShowApiKeySetup(true);
+          }
+        }
+      } catch {
+        // Ignore — no atlased bridge means no modal
+      }
+    }
+    checkApiKey();
   }, [loadExpeditions]);
 
   const handleCreateExpedition = async (playlistUrl: string, name?: string) => {
@@ -105,6 +122,25 @@ export default function Dashboard() {
         });
       }
 
+      // Auto-generate AI description from video titles (non-blocking)
+      const videoTitles = result.videos
+        .map((v: { title?: string }) => v.title)
+        .filter(Boolean) as string[];
+      if (videoTitles.length > 0) {
+        try {
+          const summaryResult = await window.atlased.ai.generateExpeditionSummary(
+            videoTitles.slice(0, 50)
+          );
+          if (summaryResult.success && summaryResult.summary) {
+            await window.atlased.expeditions.update(expedition.id, {
+              description: summaryResult.summary,
+            });
+          }
+        } catch (err) {
+          console.warn('Auto-summary generation failed (non-critical):', err);
+        }
+      }
+
       // Reload expeditions to show the new one
       await loadExpeditions();
     } catch (error) {
@@ -112,22 +148,29 @@ export default function Dashboard() {
     }
   };
 
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+
   const handleDeleteExpedition = async (id: string) => {
-    if (window.confirm("Are you sure you want to delete this expedition?")) {
-      try {
-        if (window.atlased) {
-          await window.atlased.expeditions.delete(id);
-          await loadExpeditions();
-        }
-      } catch (error) {
-        console.error("Error deleting expedition:", error);
+    setDeleteTarget(id);
+  };
+
+  const confirmDeleteExpedition = async () => {
+    if (!deleteTarget) return;
+    try {
+      if (window.atlased) {
+        await window.atlased.expeditions.delete(deleteTarget);
+        await loadExpeditions();
       }
+    } catch (error) {
+      console.error("Error deleting expedition:", error);
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
   if (isLoading) {
     return (
-      <AppLayout showFooter={true}>
+      <AppLayout>
         <div className="flex-1 flex items-center justify-center">
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="w-8 h-8 text-atlas-gold animate-spin" />
@@ -141,7 +184,7 @@ export default function Dashboard() {
   const isEmpty = expeditions.length === 0;
 
   return (
-    <AppLayout showFooter={true}>
+    <AppLayout>
       {isEmpty ? (
         <EmptyState onCreateExpedition={() => setIsModalOpen(true)} />
       ) : (
@@ -197,6 +240,20 @@ export default function Dashboard() {
         onClose={() => setIsModalOpen(false)}
         onSubmit={handleCreateExpedition}
       />
+      {/* Confirm Delete Dialog */}
+      <ConfirmDialog
+        isOpen={deleteTarget !== null}
+        title="Delete Expedition"
+        message="Are you sure you want to delete this expedition? This cannot be undone."
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={confirmDeleteExpedition}
+        onCancel={() => setDeleteTarget(null)}
+      />
+      {/* API Key Setup Modal — first launch */}
+      {showApiKeySetup && (
+        <ApiKeySetupModal onComplete={() => setShowApiKeySetup(false)} />
+      )}
     </AppLayout>
   );
 }

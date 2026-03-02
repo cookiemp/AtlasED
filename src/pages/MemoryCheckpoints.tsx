@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  AlarmClock, Calendar, Brain, Map, Clock, ChevronDown,
+  AlarmClock, Calendar, Brain, Map, Clock,
   Play, LayoutGrid, List, TrendingUp, Target, Zap,
   BookOpen
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { Dropdown } from "@/components/ui/Dropdown";
 import { cn } from "@/lib/utils";
 import type { SrsCheckpoint } from "@/types/electron";
 
@@ -105,7 +106,7 @@ function CheckpointCard({ checkpoint, isUpcoming = false }: { checkpoint: SrsChe
           </div>
 
           <button
-            onClick={() => navigate(`/expedition/${checkpoint.expeditionId}`)}
+            onClick={() => navigate(`/player/${checkpoint.id}`)}
             className="w-full flex items-center justify-center gap-2 bg-atlas-bg-tertiary hover:bg-atlas-gold hover:text-atlas-bg-primary border border-atlas-border hover:border-atlas-gold text-atlas-text-primary font-medium py-2.5 rounded-lg transition-all"
           >
             <Brain className="w-4 h-4" />
@@ -144,7 +145,10 @@ export default function MemoryCheckpoints() {
   }, []);
 
   const loadCheckpoints = async () => {
-    if (!window.atlased) return;
+    if (!window.atlased) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const data = await window.atlased.memoryCheckpoints.getAll();
@@ -245,35 +249,31 @@ export default function MemoryCheckpoints() {
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-4">
               {/* Filter Dropdown */}
-              <div className="relative">
-                <select
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value)}
-                  className="appearance-none bg-atlas-bg-tertiary border border-atlas-border rounded-lg px-4 py-2 pr-10 text-sm text-atlas-text-primary focus:outline-none focus:border-atlas-gold transition-colors cursor-pointer"
-                >
-                  <option value="all">All Checkpoints</option>
-                  <option value="due">Due Now</option>
-                  <option value="easy">Easy Difficulty</option>
-                  <option value="medium">Medium Difficulty</option>
-                  <option value="hard">Hard Difficulty</option>
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-atlas-text-muted pointer-events-none" />
-              </div>
+              <Dropdown
+                value={filter}
+                onChange={(val) => setFilter(val)}
+                options={[
+                  { value: 'all', label: 'All Checkpoints' },
+                  { value: 'due', label: 'Due Now' },
+                  { value: 'easy', label: 'Easy Difficulty' },
+                  { value: 'medium', label: 'Medium Difficulty' },
+                  { value: 'hard', label: 'Hard Difficulty' },
+                ]}
+                className="w-48"
+              />
               {/* Sort Dropdown */}
-              <div className="relative">
-                <select
-                  value={sort}
-                  onChange={(e) => setSort(e.target.value)}
-                  className="appearance-none bg-atlas-bg-tertiary border border-atlas-border rounded-lg px-4 py-2 pr-10 text-sm text-atlas-text-primary focus:outline-none focus:border-atlas-gold transition-colors cursor-pointer"
-                >
-                  <option value="date-asc">Due Date (Earliest)</option>
-                  <option value="date-desc">Due Date (Latest)</option>
-                  <option value="difficulty">Difficulty Level</option>
-                  <option value="retention">Retention (Lowest)</option>
-                  <option value="expedition">Expedition</option>
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-atlas-text-muted pointer-events-none" />
-              </div>
+              <Dropdown
+                value={sort}
+                onChange={(val) => setSort(val)}
+                options={[
+                  { value: 'date-asc', label: 'Due Date (Earliest)' },
+                  { value: 'date-desc', label: 'Due Date (Latest)' },
+                  { value: 'difficulty', label: 'Difficulty Level' },
+                  { value: 'retention', label: 'Retention (Lowest)' },
+                  { value: 'expedition', label: 'Expedition' },
+                ]}
+                className="w-48"
+              />
             </div>
 
             {/* View Toggle */}
@@ -375,7 +375,7 @@ export default function MemoryCheckpoints() {
                         <div className="ml-auto">
                           <button
                             onClick={() => {
-                              if (filteredDue[0]) navigate(`/expedition/${filteredDue[0].expeditionId}`);
+                              if (filteredDue[0]) navigate(`/player/${filteredDue[0].id}`);
                             }}
                             className="flex items-center gap-2 bg-atlas-gold hover:bg-atlas-gold-hover text-atlas-bg-primary font-semibold px-5 py-2.5 rounded-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
                           >

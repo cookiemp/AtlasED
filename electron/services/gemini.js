@@ -459,3 +459,88 @@ Instructions:
         };
     }
 }
+
+/**
+ * Generates a concise summary for an expedition based on its video titles.
+ * @param {string} apiKey - User's Gemini API key
+ * @param {string[]} videoTitles - Array of video titles in the expedition
+ * @returns {Promise<{success: boolean, summary?: string, error?: string}>}
+ */
+export async function generateExpeditionSummary(apiKey, videoTitles) {
+    if (!apiKey) {
+        return { success: false, error: 'No API key configured' };
+    }
+
+    if (!videoTitles || videoTitles.length === 0) {
+        return { success: false, error: 'No video titles provided' };
+    }
+
+    const titlesList = videoTitles
+        .filter(Boolean)
+        .map(t => `- ${sanitizeForPrompt(t)}`)
+        .join('\n');
+
+    if (!titlesList) {
+        return { success: false, error: 'Could not extract valid video titles' };
+    }
+
+    const prompt = `Write one sentence summarizing this course based on its video titles. The sentence must end with a period and be 10-20 words.
+
+Videos:
+${titlesList}
+
+Respond with ONLY the sentence. No quotes, no extra text.`;
+
+    try {
+        const response = await fetchWithFallback(apiKey, {
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+                temperature: 0.7,
+                maxOutputTokens: 1024,
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            return {
+                success: false,
+                error: errorData.error?.message || `API error: ${response.status}`
+            };
+        }
+
+        const data = await response.json();
+        let generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        if (!generatedText) {
+            return { success: false, error: 'No response generated' };
+        }
+
+        // Clean up: strip quotes, whitespace, and markdown
+        generatedText = generatedText.trim().replace(/^["'`]+|["'`]+$/g, '');
+
+        // If the text doesn't end with proper punctuation, trim to last complete sentence
+        if (!/[.!?]$/.test(generatedText)) {
+            const lastPeriod = generatedText.lastIndexOf('.');
+            if (lastPeriod > 10) {
+                generatedText = generatedText.substring(0, lastPeriod + 1);
+            } else {
+                // No complete sentence found — add a period
+                generatedText = generatedText.replace(/[,;:\s]+$/, '') + '.';
+            }
+        }
+
+        // Take only the first sentence if multiple were generated
+        const firstSentence = generatedText.match(/^[^.!?]+[.!?]/);
+        if (firstSentence) {
+            generatedText = firstSentence[0];
+        }
+
+        return { success: true, summary: generatedText };
+    } catch (error) {
+        console.error('Gemini expedition summary error:', error);
+        return {
+            success: false,
+            error: error.message || 'Failed to generate summary'
+        };
+    }
+}

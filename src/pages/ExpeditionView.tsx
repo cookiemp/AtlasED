@@ -1,10 +1,20 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   MapPin, Clock, Calendar, MoreVertical,
-  CheckCircle, PlayCircle, Circle, FileText, Lock, Loader2
+  CheckCircle, PlayCircle, Circle, FileText, Lock, Loader2,
+  Edit2, Sparkles, Trash2, Check, X
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { Dropdown } from "@/components/ui/Dropdown";
 import { cn } from "@/lib/utils";
 import type { Waypoint } from "@/types/expedition";
 import type { DbExpedition, DbWaypoint } from "@/types/electron";
@@ -21,7 +31,7 @@ function transformWaypoint(dbWp: DbWaypoint): Waypoint {
   }
 
   // Only add numbering if the title doesn't already start with a number
-  const alreadyNumbered = /^\s*\d+[\.\)\-\s]/.test(dbWp.title);
+  const alreadyNumbered = /^\s*\d+[\.)\-\s]/.test(dbWp.title);
 
   return {
     id: dbWp.id,
@@ -66,6 +76,11 @@ export default function ExpeditionView() {
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<FilterType>('all');
   const [sortBy, setSortBy] = useState('order');
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const loadExpeditionData = useCallback(async () => {
     if (!id) return;
@@ -91,6 +106,70 @@ export default function ExpeditionView() {
   useEffect(() => {
     loadExpeditionData();
   }, [loadExpeditionData]);
+
+  // ── Dropdown Actions ─────────────────────────────────────
+
+  const handleEditTitle = () => {
+    if (!expedition) return;
+    setEditTitle(expedition.title);
+    setIsEditingTitle(true);
+    setTimeout(() => titleInputRef.current?.focus(), 50);
+  };
+
+  const handleSaveTitle = async () => {
+    if (!expedition || !window.atlased) return;
+    const trimmed = editTitle.trim();
+    if (trimmed && trimmed !== expedition.title) {
+      try {
+        await window.atlased.expeditions.update(expedition.id, { title: trimmed });
+        setExpedition({ ...expedition, title: trimmed });
+      } catch (err) {
+        console.error("Failed to update title:", err);
+      }
+    }
+    setIsEditingTitle(false);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditingTitle(false);
+  };
+
+  const handleGenerateSummary = async () => {
+    if (!expedition || !window.atlased || isGeneratingSummary) return;
+    setIsGeneratingSummary(true);
+    try {
+      const titles = waypoints.map(w => w.title);
+      const result = await window.atlased.ai.generateExpeditionSummary(titles);
+      if (result.success && result.summary) {
+        await window.atlased.expeditions.update(expedition.id, { description: result.summary });
+        setExpedition({ ...expedition, description: result.summary });
+      } else {
+        console.error("Summary generation failed:", result.error);
+      }
+    } catch (err) {
+      console.error("Failed to generate summary:", err);
+    } finally {
+      setIsGeneratingSummary(false);
+    }
+  };
+
+  const handleDeleteExpedition = async () => {
+    if (!expedition || !window.atlased) return;
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteExpedition = async () => {
+    if (!expedition || !window.atlased) return;
+    setShowDeleteConfirm(false);
+    try {
+      await window.atlased.expeditions.delete(expedition.id);
+      navigate('/');
+    } catch (err) {
+      console.error("Failed to delete expedition:", err);
+    }
+  };
+
+  // ── Derived data ─────────────────────────────────────────
 
   const filteredWaypoints = waypoints.filter(w => {
     if (filter === 'all') return true;
@@ -183,16 +262,65 @@ export default function ExpeditionView() {
                 <span className="text-atlas-text-muted">•</span>
                 <span className="text-atlas-text-secondary text-sm">Learning Journey</span>
               </div>
-              <h1 className="font-display font-bold text-4xl text-atlas-text-primary tracking-tight mb-3">
-                {expedition.title}
-              </h1>
+              {isEditingTitle ? (
+                <div className="flex items-center gap-3 mb-3">
+                  <input
+                    ref={titleInputRef}
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveTitle();
+                      if (e.key === 'Escape') handleCancelEdit();
+                    }}
+                    className="font-display font-bold text-3xl text-atlas-text-primary tracking-tight bg-atlas-bg-tertiary border border-atlas-border rounded-lg px-4 py-2 w-full focus:outline-none focus:border-atlas-gold/50 transition-colors"
+                  />
+                  <button
+                    onClick={handleSaveTitle}
+                    className="p-2 rounded-lg bg-atlas-gold/15 text-atlas-gold hover:bg-atlas-gold/25 transition-colors"
+                  >
+                    <Check className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={handleCancelEdit}
+                    className="p-2 rounded-lg bg-atlas-bg-tertiary text-atlas-text-muted hover:text-atlas-text-primary transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              ) : (
+                <h1 className="font-display font-bold text-4xl text-atlas-text-primary tracking-tight mb-3">
+                  {expedition.title}
+                </h1>
+              )}
               <p className="text-atlas-text-secondary text-base max-w-2xl leading-relaxed">
-                Transform this YouTube content into a structured learning experience with field guides, quizzes, and spaced repetition.
+                {expedition.description || "Transform this YouTube content into a structured learning experience with field guides, quizzes, and spaced repetition."}
               </p>
             </div>
-            <button className="flex items-center gap-2 px-4 py-2.5 bg-atlas-bg-tertiary hover:bg-atlas-border border border-atlas-border rounded-lg text-atlas-text-secondary hover:text-atlas-text-primary transition-all duration-200">
-              <MoreVertical className="w-[18px] h-[18px]" />
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-2 px-4 py-2.5 bg-atlas-bg-tertiary hover:bg-atlas-border border border-atlas-border rounded-lg text-atlas-text-secondary hover:text-atlas-text-primary transition-all duration-200">
+                  <MoreVertical className="w-[18px] h-[18px]" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 bg-atlas-bg-secondary border-atlas-border">
+                <DropdownMenuItem onClick={handleEditTitle} className="gap-2 cursor-pointer">
+                  <Edit2 className="w-4 h-4" />
+                  <span>Edit Title</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleGenerateSummary} disabled={isGeneratingSummary} className="gap-2 cursor-pointer">
+                  {isGeneratingSummary
+                    ? <Loader2 className="w-4 h-4 animate-spin text-atlas-gold" />
+                    : <Sparkles className="w-4 h-4 text-atlas-gold" />}
+                  <span>{isGeneratingSummary ? "Generating..." : "Generate AI Summary"}</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-atlas-border" />
+                <DropdownMenuItem onClick={handleDeleteExpedition} className="gap-2 cursor-pointer text-red-400 focus:text-red-400 focus:bg-red-400/10">
+                  <Trash2 className="w-4 h-4" />
+                  <span>Delete Expedition</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           {/* Meta Info & Progress */}
@@ -268,16 +396,17 @@ export default function ExpeditionView() {
           </div>
           <div className="flex items-center gap-3">
             <span className="text-atlas-text-muted text-sm">Sort by:</span>
-            <select
+            <Dropdown
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="bg-atlas-bg-secondary border border-atlas-border text-atlas-text-primary text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-atlas-gold transition-colors cursor-pointer"
-            >
-              <option value="order">Default Order</option>
-              <option value="date">Last Completed</option>
-              <option value="duration">Duration</option>
-              <option value="status">Status</option>
-            </select>
+              onChange={(val) => setSortBy(val)}
+              options={[
+                { value: 'order', label: 'Default Order' },
+                { value: 'date', label: 'Last Completed' },
+                { value: 'duration', label: 'Duration' },
+                { value: 'status', label: 'Status' },
+              ]}
+              className="w-44"
+            />
           </div>
         </div>
 
@@ -370,6 +499,16 @@ export default function ExpeditionView() {
 
 
       </div>
+      {/* Confirm Delete Dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title="Delete Expedition"
+        message="Are you sure you want to delete this expedition? This cannot be undone."
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={confirmDeleteExpedition}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </AppLayout>
   );
 }

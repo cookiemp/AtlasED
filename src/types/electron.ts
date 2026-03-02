@@ -7,6 +7,7 @@
 export interface DbExpedition {
     id: string;
     title: string;
+    description?: string;
     playlist_url?: string;
     thumbnail_url?: string;
     created_at: string;
@@ -213,6 +214,7 @@ export interface Settings {
     youtube_api_key: string;
     theme: string;
     auto_quiz: boolean;
+    auto_field_guide: boolean;
     playback_speed: number;
     srs_enabled: boolean;
     srs_intervals: number[];
@@ -225,13 +227,14 @@ export interface AtlasedAPI {
         maximize: () => Promise<void>;
         close: () => Promise<void>;
     };
+    openExternal: (url: string) => Promise<void>;
     settings: {
         get: <K extends keyof Settings>(key: K) => Promise<Settings[K]>;
         set: <K extends keyof Settings>(key: K, value: Settings[K]) => Promise<void>;
         getAll: () => Promise<Settings>;
     };
     expeditions: {
-        create: (data: { title: string; playlist_url?: string; thumbnail_url?: string }) => Promise<DbExpedition>;
+        create: (data: { title: string; description?: string; playlist_url?: string; thumbnail_url?: string }) => Promise<DbExpedition>;
         getAll: () => Promise<DbExpedition[]>;
         get: (id: string) => Promise<DbExpedition | null>;
         delete: (id: string) => Promise<void>;
@@ -286,6 +289,7 @@ export interface AtlasedAPI {
         validateApiKey: (apiKey: string) => Promise<ApiKeyValidationResult>;
         fetchPlaylist: (url: string) => Promise<PlaylistResult>;
         chat: (message: string, transcript: string, videoTitle: string, previousMessages: Array<{ role: string; content: string }>) => Promise<ChatResult>;
+        generateExpeditionSummary: (videoTitles: string[]) => Promise<{ success: boolean; summary?: string; error?: string }>;
     };
 }
 
