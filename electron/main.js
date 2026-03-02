@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 import fs from 'fs';
+import http from 'http';
 import { initDatabase } from './database/init.js';
 import * as queries from './database/queries.js';
 import Store from 'electron-store';
@@ -89,8 +90,80 @@ function initStore() {
 const store = initStore();
 
 let mainWindow;
+let localServer = null;
+let localServerPort = null;
 
-function createWindow() {
+/**
+ * Start a minimal HTTP server to serve the built frontend.
+ * YouTube embeds refuse to work from file:// origins (Error 153),
+ * so we serve via http://127.0.0.1:PORT instead.
+ */
+function startLocalServer(distPath) {
+    return new Promise((resolve, reject) => {
+        const mimeTypes = {
+            '.html': 'text/html; charset=utf-8',
+            '.js': 'application/javascript; charset=utf-8',
+            '.css': 'text/css; charset=utf-8',
+            '.json': 'application/json; charset=utf-8',
+            '.png': 'image/png',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.gif': 'image/gif',
+            '.svg': 'image/svg+xml',
+            '.ico': 'image/x-icon',
+            '.woff': 'font/woff',
+            '.woff2': 'font/woff2',
+            '.ttf': 'font/ttf',
+            '.webp': 'image/webp',
+            '.webm': 'video/webm',
+            '.mp4': 'video/mp4',
+            '.wasm': 'application/wasm',
+        };
+
+        const server = http.createServer((req, res) => {
+            // Parse URL and remove query string
+            const urlPath = decodeURIComponent(req.url.split('?')[0]);
+            let filePath = path.join(distPath, urlPath === '/' ? 'index.html' : urlPath);
+
+            // Security: prevent directory traversal
+            if (!filePath.startsWith(distPath)) {
+                res.writeHead(403);
+                res.end('Forbidden');
+                return;
+            }
+
+            fs.stat(filePath, (err, stats) => {
+                if (err || !stats.isFile()) {
+                    // SPA fallback: serve index.html for any non-file route
+                    filePath = path.join(distPath, 'index.html');
+                }
+
+                fs.readFile(filePath, (readErr, data) => {
+                    if (readErr) {
+                        res.writeHead(404);
+                        res.end('Not found');
+                        return;
+                    }
+                    const ext = path.extname(filePath).toLowerCase();
+                    const contentType = mimeTypes[ext] || 'application/octet-stream';
+                    res.writeHead(200, { 'Content-Type': contentType });
+                    res.end(data);
+                });
+            });
+        });
+
+        // Listen on a random available port, bound to localhost only
+        server.listen(0, '127.0.0.1', () => {
+            const port = server.address().port;
+            console.log(`[LocalServer] Serving dist on http://127.0.0.1:${port}`);
+            resolve({ server, port });
+        });
+
+        server.on('error', reject);
+    });
+}
+
+async function createWindow() {
     mainWindow = new BrowserWindow({
         width: 1400,
         height: 900,
@@ -112,20 +185,31 @@ function createWindow() {
         mainWindow.loadURL('http://localhost:5173');
         mainWindow.webContents.openDevTools();
     } else {
-        // Production: Load built files
-        mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+        // Production: Serve built files via local HTTP server
+        // This gives YouTube embeds a proper http:// origin (fixes Error 153)
+        let distPath = path.join(__dirname, '../dist');
+        // When packed with asar + asarUnpack, files live in app.asar.unpacked/dist
+        const unpackedPath = distPath.replace('app.asar', 'app.asar.unpacked');
+        if (fs.existsSync(unpackedPath)) {
+            distPath = unpackedPath;
+        }
+        console.log('[LocalServer] distPath:', distPath);
+        const { server, port } = await startLocalServer(distPath);
+        localServer = server;
+        localServerPort = port;
+        mainWindow.loadURL(`http://127.0.0.1:${port}`);
     }
 }
 
 // Initialize database and create window
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
     initDatabase();
-    createWindow();
+    await createWindow();
 
     // Configure CSP headers only for our own app pages
     // YouTube iframe content must NOT be restricted by our CSP
     mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
-        const isOurApp = details.url.startsWith('http://localhost:') || details.url.startsWith('file://');
+        const isOurApp = details.url.startsWith('http://localhost:') || details.url.startsWith('http://127.0.0.1:') || details.url.startsWith('file://');
         if (isOurApp) {
             callback({
                 responseHeaders: {
@@ -195,6 +279,15 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
         app.quit();
+    }
+});
+
+// Clean up local server on quit
+app.on('will-quit', () => {
+    if (localServer) {
+        localServer.close();
+        localServer = null;
+        console.log('[LocalServer] Stopped');
     }
 });
 
