@@ -93,6 +93,63 @@ async function fetchWithFallback(apiKey, body, timeoutMs = REQUEST_TIMEOUT_MS) {
 }
 
 /**
+ * Attempts to parse JSON, with repair for truncated responses.
+ * Gemini sometimes returns incomplete JSON (e.g., when response is cut off).
+ * This tries to close any open brackets/braces/strings to salvage the data.
+ */
+function tryParseJSON(text) {
+    // First try direct parse
+    try {
+        return JSON.parse(text);
+    } catch {
+        // Attempt to repair truncated JSON
+    }
+
+    // Try removing trailing incomplete values and closing brackets
+    let repaired = text;
+
+    // Remove trailing comma + whitespace
+    repaired = repaired.replace(/,\s*$/, '');
+
+    // Count open brackets/braces and close them
+    let openBraces = 0;
+    let openBrackets = 0;
+    let inString = false;
+    let escape = false;
+
+    for (let i = 0; i < repaired.length; i++) {
+        const ch = repaired[i];
+        if (escape) { escape = false; continue; }
+        if (ch === '\\') { escape = true; continue; }
+        if (ch === '"') { inString = !inString; continue; }
+        if (inString) continue;
+        if (ch === '{') openBraces++;
+        if (ch === '}') openBraces--;
+        if (ch === '[') openBrackets++;
+        if (ch === ']') openBrackets--;
+    }
+
+    // If we're inside a string, close it
+    if (inString) {
+        repaired += '"';
+    }
+
+    // Remove trailing comma after closing the string
+    repaired = repaired.replace(/,\s*$/, '');
+
+    // Close open brackets then braces
+    while (openBrackets > 0) { repaired += ']'; openBrackets--; }
+    while (openBraces > 0) { repaired += '}'; openBraces--; }
+
+    try {
+        return JSON.parse(repaired);
+    } catch {
+        // Last resort: try to find the last valid JSON object
+        throw new SyntaxError('Could not parse or repair AI response JSON');
+    }
+}
+
+/**
  * Generates a Field Guide from a video transcript using Gemini AI
  * @param {string} apiKey - User's Gemini API key
  * @param {string} transcript - The video transcript text
@@ -163,7 +220,7 @@ Rules:
                 temperature: 0.7,
                 topK: 40,
                 topP: 0.95,
-                maxOutputTokens: 8192,
+                maxOutputTokens: 16384,
             }
         });
 
@@ -212,7 +269,7 @@ Rules:
         }
         cleanedText = cleanedText.trim();
 
-        const fieldGuideData = JSON.parse(cleanedText);
+        const fieldGuideData = tryParseJSON(cleanedText);
 
         return {
             success: true,
@@ -311,7 +368,7 @@ Rules:
         }
         cleanedText = cleanedText.trim();
 
-        const quizData = JSON.parse(cleanedText);
+        const quizData = tryParseJSON(cleanedText);
 
         return {
             success: true,

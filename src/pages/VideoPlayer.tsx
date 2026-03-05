@@ -71,6 +71,13 @@ export default function VideoPlayer() {
   const playerRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const timePollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const mountedRef = useRef(true); // Track if component is still mounted
+
+  // Track component mount/unmount for safe async operations
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   // Reset all state when navigating to a different waypoint (prev/next)
   useEffect(() => {
@@ -378,10 +385,12 @@ export default function VideoPlayer() {
           const transcriptResult = await window.atlased.ai.fetchTranscript(waypoint.youtube_id);
           if (transcriptResult.success && transcriptResult.transcript) {
             transcript = transcriptResult.transcript;
-            // Save transcript to DB
+            // Save transcript to DB (safe even if navigated away)
             await window.atlased.waypoints.updateTranscript(waypoint.id, transcript);
-            // Update local state so Compass AI works immediately
-            setWaypoint(prev => prev ? { ...prev, transcript_text: transcript! } : prev);
+            // Update local state only if still mounted
+            if (mountedRef.current) {
+              setWaypoint(prev => prev ? { ...prev, transcript_text: transcript! } : prev);
+            }
           } else {
             throw new Error(transcriptResult.error || "Failed to fetch transcript");
           }
@@ -398,7 +407,6 @@ export default function VideoPlayer() {
             key_takeaways: result.data.key_takeaways || [],
             markdown_content: result.data.markdown_content,
           };
-          setFieldGuide(fgData);
 
           // Generate timed quizzes via separate API call
           // Falls back to field guide's embedded quizzes if the dedicated call fails
@@ -430,11 +438,8 @@ export default function VideoPlayer() {
             }));
           }
 
-          if (quizzes.length > 0) {
-            setQuizQuestions(quizzes);
-          }
-
-          // Save to database — update if exists, create if new
+          // Save to database — this is safe to do even if component unmounted
+          // (persists data so it's available when user returns)
           const existingFg = await window.atlased.fieldGuides.get(waypoint.id);
           const quizDataPayload = JSON.stringify({
             code_examples: fgData.code_examples,
@@ -472,20 +477,34 @@ export default function VideoPlayer() {
           } catch (tagErr) {
             console.warn('Tag persistence failed (non-critical):', tagErr);
           }
+
+          // Only update UI state if the component is still mounted
+          if (mountedRef.current) {
+            setFieldGuide(fgData);
+            if (quizzes.length > 0) {
+              setQuizQuestions(quizzes);
+            }
+          }
         } else {
           throw new Error(result.error || "Failed to generate field guide");
         }
       }
     } catch (error) {
       console.error("Error generating field guide:", error);
-      const errMsg = error instanceof Error ? error.message : String(error);
-      if (errMsg.toLowerCase().includes('rate limit') || errMsg.toLowerCase().includes('quota')) {
-        alert("Rate limit reached. The free Gemini API tier allows 20 requests per minute. Please wait about a minute and try again.");
-      } else {
-        alert(`Failed to generate field guide: ${errMsg}`);
+      // Only show user-facing feedback if the component is still mounted
+      // (navigating away should NOT trigger a dialog)
+      if (mountedRef.current) {
+        const errMsg = error instanceof Error ? error.message : String(error);
+        if (errMsg.toLowerCase().includes('rate limit') || errMsg.toLowerCase().includes('quota')) {
+          console.warn('[FieldGuide] Rate limit reached — will retry on next visit.');
+        } else {
+          console.warn(`[FieldGuide] Generation failed: ${errMsg}`);
+        }
       }
     } finally {
-      setIsGeneratingGuide(false);
+      if (mountedRef.current) {
+        setIsGeneratingGuide(false);
+      }
     }
   };
 

@@ -7,7 +7,7 @@ import type { PlaylistResult } from "@/types/electron";
 interface NewExpeditionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (playlistUrl: string, name?: string) => void | Promise<void>;
+  onSubmit: (playlistUrl: string, name?: string, prefetchedResult?: PlaylistResult) => void | Promise<void>;
 }
 
 type ModalState = 'initial' | 'loading' | 'error' | 'preview';
@@ -64,7 +64,7 @@ export function NewExpeditionModal({ isOpen, onClose, onSubmit }: NewExpeditionM
     if (isSubmitting) return;
     setIsSubmitting(true);
     try {
-      await onSubmit(playlistUrl, expeditionName || undefined);
+      await onSubmit(playlistUrl, expeditionName || undefined, fetchResult || undefined);
       onClose();
       setPlaylistUrl("");
       setExpeditionName("");

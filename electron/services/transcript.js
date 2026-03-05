@@ -9,6 +9,180 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
+// Track whether we've already attempted auto-install this session
+let hasAttemptedInstall = false;
+let isPackageAvailable = null; // null = unknown, true/false = checked
+
+/**
+ * Auto-install youtube-transcript-api via pip if not already installed.
+ * Runs silently in the background. Only attempts once per session.
+ * @returns {Promise<{installed: boolean, error?: string}>}
+ */
+async function ensureTranscriptApiInstalled() {
+    if (hasAttemptedInstall && isPackageAvailable === true) {
+        return { installed: true };
+    }
+
+    // First, check if it's already installed
+    const checkResult = await checkPythonPackage();
+    if (checkResult.available) {
+        isPackageAvailable = true;
+        return { installed: true };
+    }
+
+    if (hasAttemptedInstall) {
+        // Already tried to install this session, don't retry
+        return { installed: false, error: 'Installation was already attempted this session' };
+    }
+
+    hasAttemptedInstall = true;
+    console.log('[Transcript] youtube-transcript-api not found, auto-installing...');
+
+    // Try installing with pip
+    const installResult = await installPackage();
+    if (installResult.success) {
+        console.log('[Transcript] youtube-transcript-api installed successfully');
+        isPackageAvailable = true;
+        return { installed: true };
+    }
+
+    console.error('[Transcript] Failed to auto-install youtube-transcript-api:', installResult.error);
+    isPackageAvailable = false;
+    return { installed: false, error: installResult.error };
+}
+
+/**
+ * Check if youtube-transcript-api Python package is importable
+ * @returns {Promise<{available: boolean}>}
+ */
+function checkPythonPackage() {
+    return new Promise((resolve) => {
+        let proc;
+        try {
+            proc = spawn('python', ['-c', 'import youtube_transcript_api; print("ok")'], {
+                windowsHide: true,
+                env: { ...process.env },
+                timeout: 10000,
+            });
+        } catch {
+            resolve({ available: false });
+            return;
+        }
+
+        let output = '';
+        proc.stdout.on('data', (data) => { output += data.toString(); });
+        proc.on('close', (code) => {
+            resolve({ available: code === 0 && output.trim().includes('ok') });
+        });
+        proc.on('error', () => {
+            resolve({ available: false });
+        });
+    });
+}
+
+/**
+ * Install youtube-transcript-api via pip
+ * Tries pip install with --user flag as fallback
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+function installPackage() {
+    return new Promise((resolve) => {
+        let errorOutput = '';
+        let resolved = false;
+
+        const timeoutId = setTimeout(() => {
+            if (!resolved) {
+                resolved = true;
+                try { proc.kill(); } catch { /* ignore */ }
+                resolve({ success: false, error: 'pip install timed out after 60 seconds' });
+            }
+        }, 60000);
+
+        let proc;
+        try {
+            proc = spawn('pip', ['install', 'youtube-transcript-api'], {
+                windowsHide: true,
+                env: { ...process.env },
+            });
+        } catch (err) {
+            clearTimeout(timeoutId);
+            // Try python -m pip as fallback
+            return tryPythonMPip(resolve);
+        }
+
+        proc.stderr.on('data', (data) => { errorOutput += data.toString(); });
+
+        proc.on('close', (code) => {
+            clearTimeout(timeoutId);
+            if (resolved) return;
+            resolved = true;
+
+            if (code === 0) {
+                resolve({ success: true });
+            } else {
+                // Try python -m pip as fallback
+                tryPythonMPip(resolve);
+            }
+        });
+
+        proc.on('error', () => {
+            clearTimeout(timeoutId);
+            if (resolved) return;
+            resolved = true;
+            // Try python -m pip as fallback
+            tryPythonMPip(resolve);
+        });
+    });
+}
+
+/**
+ * Fallback: try `python -m pip install youtube-transcript-api`
+ */
+function tryPythonMPip(resolve) {
+    let errorOutput = '';
+    let resolved = false;
+
+    const timeoutId = setTimeout(() => {
+        if (!resolved) {
+            resolved = true;
+            try { proc.kill(); } catch { /* ignore */ }
+            resolve({ success: false, error: 'python -m pip install timed out' });
+        }
+    }, 60000);
+
+    let proc;
+    try {
+        proc = spawn('python', ['-m', 'pip', 'install', 'youtube-transcript-api'], {
+            windowsHide: true,
+            env: { ...process.env },
+        });
+    } catch (err) {
+        clearTimeout(timeoutId);
+        resolve({ success: false, error: `Cannot run pip: ${err.message}` });
+        return;
+    }
+
+    proc.stderr.on('data', (data) => { errorOutput += data.toString(); });
+
+    proc.on('close', (code) => {
+        clearTimeout(timeoutId);
+        if (resolved) return;
+        resolved = true;
+        if (code === 0) {
+            resolve({ success: true });
+        } else {
+            resolve({ success: false, error: errorOutput || `pip exited with code ${code}` });
+        }
+    });
+
+    proc.on('error', (err) => {
+        clearTimeout(timeoutId);
+        if (resolved) return;
+        resolved = true;
+        resolve({ success: false, error: `Python/pip not available: ${err.message}` });
+    });
+}
+
 /**
  * Fetches transcript using Python youtube-transcript-api
  * This library can fetch both manual and auto-generated captions
@@ -252,13 +426,24 @@ except ImportError:
 
 /**
  * Main function to fetch transcript
- * Uses Python youtube-transcript-api which supports auto-generated captions
+ * Uses Python youtube-transcript-api which supports auto-generated captions.
+ * Auto-installs the Python package if not found.
  * @param {string} videoId - The YouTube video ID
  * @param {string} _apiKey - Not used anymore, kept for API compatibility
  * @returns {Promise<{success: boolean, transcript?: string, method?: string, error?: string}>}
  */
 export async function fetchTranscriptWithFallback(videoId, _apiKey) {
     console.log(`[Transcript] Fetching transcript for ${videoId}...`);
+
+    // Ensure youtube-transcript-api is installed before attempting fetch
+    const installCheck = await ensureTranscriptApiInstalled();
+    if (!installCheck.installed) {
+        return {
+            success: false,
+            error: `Python dependency missing: ${installCheck.error || 'youtube-transcript-api could not be installed'}. Please ensure Python is installed and run: pip install youtube-transcript-api`,
+            supportsManualInput: true
+        };
+    }
 
     // Use Python youtube-transcript-api (supports auto-generated captions)
     const result = await fetchWithPython(videoId);

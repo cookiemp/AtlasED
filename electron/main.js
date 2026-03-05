@@ -4,12 +4,12 @@ import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 import fs from 'fs';
 import http from 'http';
+import https from 'https';
 import { initDatabase } from './database/init.js';
 import * as queries from './database/queries.js';
 import Store from 'electron-store';
 import { fetchTranscriptWithFallback } from './services/transcript.js';
 import { generateFieldGuide, generateQuizzes, validateApiKey, chatWithAI, generateExpeditionSummary } from './services/gemini.js';
-import ytpl from '@distube/ytpl';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -374,61 +374,207 @@ ipcMain.handle('db:getMemoryCheckpoints', () => queries.getMemoryCheckpoints());
 
 // ============ Playlist Fetching ============
 
+/**
+ * Fetch playlist data by scraping YouTube's playlist page.
+ * Pure Node.js — no Python, no external libraries, near-instant.
+ * Parses the `ytInitialData` JSON blob embedded in the page HTML.
+ * Follows redirects (up to 3) and bypasses YouTube consent pages.
+ * @param {string} playlistId - The YouTube playlist ID
+ * @returns {Promise<{success: boolean, title?: string, videos?: Array, error?: string}>}
+ */
+function fetchPlaylistFromYouTube(playlistId) {
+    return new Promise((resolve) => {
+        let resolved = false;
+        const safeResolve = (val) => {
+            if (resolved) return;
+            resolved = true;
+            clearTimeout(timeoutId);
+            resolve(val);
+        };
+
+        const timeoutId = setTimeout(() => {
+            safeResolve({ success: false, error: 'Playlist fetch timed out after 30 seconds' });
+            try { if (currentReq) currentReq.destroy(); } catch { /* ignore */ }
+        }, 30000);
+
+        let currentReq = null;
+
+        function doFetch(fetchUrl, redirectCount = 0) {
+            if (redirectCount > 3) {
+                safeResolve({ success: false, error: 'Too many redirects from YouTube' });
+                return;
+            }
+
+            console.log(`[Playlist] Fetching: ${fetchUrl}${redirectCount > 0 ? ` (redirect ${redirectCount})` : ''}`);
+
+            currentReq = https.get(fetchUrl, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'Cookie': 'CONSENT=YES+cb; SOCS=CAESEwgDEgk2MTkxMjEyMjQaAmVuIAEaBgiA_LyaBg',
+                },
+            }, (res) => {
+                // Follow redirects
+                if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                    res.resume(); // Drain the response
+                    let redirectUrl = res.headers.location;
+                    // Handle relative URLs
+                    if (redirectUrl.startsWith('/')) {
+                        redirectUrl = `https://www.youtube.com${redirectUrl}`;
+                    }
+                    doFetch(redirectUrl, redirectCount + 1);
+                    return;
+                }
+
+                if (res.statusCode !== 200) {
+                    res.resume();
+                    safeResolve({ success: false, error: `YouTube returned status ${res.statusCode}` });
+                    return;
+                }
+
+                let data = '';
+                res.on('data', (chunk) => { data += chunk; });
+                res.on('end', () => {
+                    try {
+                        // Extract ytInitialData JSON from the HTML
+                        const match = data.match(/var ytInitialData = (.+?);<\/script>/s);
+                        if (!match) {
+                            safeResolve({ success: false, error: 'Could not parse YouTube playlist page. The playlist may be private or unavailable.' });
+                            return;
+                        }
+
+                        const ytData = JSON.parse(match[1]);
+
+                        // Extract playlist title
+                        const title = ytData?.metadata?.playlistMetadataRenderer?.title || '';
+
+                        // Navigate to the video list
+                        const contents = ytData?.contents
+                            ?.twoColumnBrowseResultsRenderer?.tabs?.[0]
+                            ?.tabRenderer?.content
+                            ?.sectionListRenderer?.contents?.[0]
+                            ?.itemSectionRenderer?.contents?.[0]
+                            ?.playlistVideoListRenderer?.contents;
+
+                        if (!contents || !Array.isArray(contents)) {
+                            safeResolve({ success: false, error: 'Playlist appears to be empty or unavailable.' });
+                            return;
+                        }
+
+                        // Parse video items (filter out continuation tokens)
+                        const videos = contents
+                            .filter(c => c.playlistVideoRenderer)
+                            .map((c, index) => {
+                                const v = c.playlistVideoRenderer;
+                                const videoId = v.videoId || '';
+                                const videoTitle = v.title?.runs?.[0]?.text || `Video ${index + 1}`;
+
+                                // Parse duration from "lengthText" (e.g., "12:34")
+                                const durationText = v.lengthText?.simpleText || '';
+                                let durationSeconds = 0;
+                                if (durationText) {
+                                    const parts = durationText.split(':').map(Number);
+                                    if (parts.length === 3) durationSeconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
+                                    else if (parts.length === 2) durationSeconds = parts[0] * 60 + parts[1];
+                                    else durationSeconds = parts[0] || 0;
+                                }
+
+                                // Get best thumbnail
+                                const thumbnails = v.thumbnail?.thumbnails || [];
+                                const thumbnailUrl = thumbnails.length > 0
+                                    ? thumbnails[thumbnails.length - 1].url
+                                    : `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
+
+                                return {
+                                    youtube_id: videoId,
+                                    title: videoTitle,
+                                    thumbnail_url: thumbnailUrl,
+                                    duration_seconds: durationSeconds,
+                                    order_index: index,
+                                };
+                            });
+
+                        if (videos.length === 0) {
+                            safeResolve({ success: false, error: 'No videos found in this playlist.' });
+                            return;
+                        }
+
+                        console.log(`[Playlist] Found ${videos.length} videos in "${title}"`);
+                        safeResolve({
+                            success: true,
+                            title,
+                            videos,
+                        });
+                    } catch (parseErr) {
+                        console.error('[Playlist] Parse error:', parseErr);
+                        safeResolve({ success: false, error: 'Failed to parse playlist data from YouTube.' });
+                    }
+                });
+            });
+
+            currentReq.on('error', (err) => {
+                safeResolve({ success: false, error: `Network error: ${err.message}` });
+            });
+        }
+
+        doFetch(`https://www.youtube.com/playlist?list=${playlistId}`);
+    });
+}
+
 ipcMain.handle('ai:fetchPlaylist', async (_, url) => {
     try {
-        // Check if it's a playlist URL
+        // Extract playlist ID if present
         const playlistMatch = url.match(/[?&]list=([^&]+)/);
 
         if (playlistMatch) {
-            // It's a playlist URL — fetch all videos
-            const playlist = await ytpl(playlistMatch[1], { limit: Infinity });
-            return {
-                success: true,
-                isPlaylist: true,
-                title: playlist.title,
-                videos: playlist.items.map((item, index) => ({
-                    youtube_id: item.id,
-                    title: item.title,
-                    thumbnail_url: item.bestThumbnail?.url || item.thumbnails?.[0]?.url || null,
-                    duration_seconds: item.duration ? parseDuration(item.duration) : 0,
-                    order_index: index,
-                }))
-            };
-        } else {
-            // It's a single video URL — extract video ID
-            const videoIdMatch = url.match(
-                /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([^&\n?#]+)/
-            );
-            if (!videoIdMatch) {
-                return { success: false, error: 'Could not extract video ID from URL' };
+            // It's a playlist URL — fetch all videos via YouTube page scraping
+            const result = await fetchPlaylistFromYouTube(playlistMatch[1]);
+
+            if (result.success) {
+                return {
+                    success: true,
+                    isPlaylist: true,
+                    title: result.title,
+                    videos: result.videos,
+                };
             }
+
+            // Playlist fetch failed — return the error directly.
+            // Do NOT fall through to single-video extraction when the user
+            // clearly pasted a playlist URL (has list= param).
+            console.warn('[Playlist] Playlist fetch failed:', result.error);
+            return {
+                success: false,
+                error: result.error || 'Failed to fetch playlist. Please try again.',
+            };
+        }
+
+        // Single video URL (no list= param) — extract video ID
+        const videoIdMatch = url.match(
+            /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([^&\n?#]+)/
+        );
+
+        if (videoIdMatch) {
             return {
                 success: true,
                 isPlaylist: false,
                 title: null,
                 videos: [{
                     youtube_id: videoIdMatch[1],
-                    title: null, // Will need to be set by user or fetched separately
+                    title: null,
                     thumbnail_url: `https://i.ytimg.com/vi/${videoIdMatch[1]}/mqdefault.jpg`,
                     duration_seconds: 0,
                     order_index: 0,
                 }]
             };
         }
+
+        return { success: false, error: 'Could not recognize this URL. Please paste a YouTube video or playlist URL.' };
     } catch (error) {
         console.error('Playlist fetch error:', error);
         return { success: false, error: error.message || 'Failed to fetch playlist' };
     }
 });
-
-// Helper: parse "HH:MM:SS" or "MM:SS" duration string to seconds
-function parseDuration(durationStr) {
-    if (!durationStr) return 0;
-    const parts = durationStr.split(':').map(Number);
-    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-    if (parts.length === 2) return parts[0] * 60 + parts[1];
-    return parts[0] || 0;
-}
 
 // ============ AI Services ============
 

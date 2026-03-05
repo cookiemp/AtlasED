@@ -10,7 +10,7 @@ import { NewExpeditionModal } from "@/components/modals/NewExpeditionModal";
 import { ApiKeySetupModal } from "@/components/modals/ApiKeySetupModal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import type { Expedition } from "@/types/expedition";
-import type { DbExpedition } from "@/types/electron";
+import type { DbExpedition, PlaylistResult } from "@/types/electron";
 
 // Transform database expedition to UI expedition format
 function transformExpedition(dbExp: DbExpedition): Expedition {
@@ -87,17 +87,22 @@ export default function Dashboard() {
     checkApiKey();
   }, [loadExpeditions]);
 
-  const handleCreateExpedition = async (playlistUrl: string, name?: string) => {
+  const handleCreateExpedition = async (playlistUrl: string, name?: string, prefetchedResult?: PlaylistResult) => {
     if (!window.atlased) return;
 
     try {
-      // Fetch playlist/video data from main process
-      const result = await window.atlased.ai.fetchPlaylist(playlistUrl);
+      // Use prefetched result if available, otherwise fetch fresh
+      console.log('[Dashboard] Creating expedition. Prefetched result:', prefetchedResult ? `${prefetchedResult.videos?.length} videos` : 'none');
+      const result = prefetchedResult && prefetchedResult.success
+        ? prefetchedResult
+        : await window.atlased.ai.fetchPlaylist(playlistUrl);
 
       if (!result.success || !result.videos || result.videos.length === 0) {
         console.error("Failed to fetch playlist:", result.error);
         return;
       }
+
+      console.log(`[Dashboard] Processing ${result.videos.length} videos for expedition`);
 
       // Determine expedition title
       const expeditionTitle = name || result.title || "New Expedition";
@@ -111,20 +116,27 @@ export default function Dashboard() {
       });
 
       // Create waypoints for ALL videos
+      let createdCount = 0;
       for (const video of result.videos) {
-        await window.atlased.waypoints.create({
-          expedition_id: expedition.id,
-          title: video.title || `Video ${video.order_index + 1}`,
-          youtube_id: video.youtube_id,
-          order_index: video.order_index,
-          thumbnail_url: video.thumbnail_url || undefined,
-          duration_seconds: video.duration_seconds || undefined,
-        });
+        try {
+          await window.atlased.waypoints.create({
+            expedition_id: expedition.id,
+            title: video.title || `Video ${video.order_index + 1}`,
+            youtube_id: video.youtube_id,
+            order_index: video.order_index,
+            thumbnail_url: video.thumbnail_url || undefined,
+            duration_seconds: video.duration_seconds || undefined,
+          });
+          createdCount++;
+        } catch (waypointErr) {
+          console.error(`[Dashboard] Failed to create waypoint ${video.order_index}:`, waypointErr);
+        }
       }
+      console.log(`[Dashboard] Created ${createdCount}/${result.videos.length} waypoints`);
 
       // Auto-generate AI description from video titles (non-blocking)
       const videoTitles = result.videos
-        .map((v: { title?: string }) => v.title)
+        .map((v: { title?: string | null }) => v.title)
         .filter(Boolean) as string[];
       if (videoTitles.length > 0) {
         try {

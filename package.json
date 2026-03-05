@@ -16,7 +16,9 @@
     "electron": "electron .",
     "electron:dev": "concurrently -k \"npm run dev\" \"wait-on http://localhost:5173 && cross-env NODE_ENV=development electron .\"",
     "electron:build": "npm run build && electron-builder",
-    "package": "npm run build && electron-builder --win"
+    "package": "npm run build && electron-builder --win",
+    "postinstall": "node -e \"const{execSync}=require('child_process');try{execSync('python -c \\\"import youtube_transcript_api\\\"',{stdio:'ignore'})}catch{console.log('[Setup] Installing youtube-transcript-api...');try{execSync('pip install youtube-transcript-api',{stdio:'inherit'})}catch{try{execSync('python -m pip install youtube-transcript-api',{stdio:'inherit'})}catch(e){console.warn('[Setup] Could not auto-install youtube-transcript-api. Please run: pip install youtube-transcript-api')}}}\"",
+    "setup": "npm install && pip install youtube-transcript-api"
   },
   "build": {
     "appId": "com.atlased.app",
@@ -40,18 +42,18 @@
       "node_modules/better-sqlite3/**/*"
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "icon.ico"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "installerIcon": null,
-      "uninstallerIcon": null
+      "installerIcon": "icon.ico",
+      "uninstallerIcon": "icon.ico"
     },
     "npmRebuild": true
   },
   "dependencies": {
-    "@distube/ytpl": "^1.2.4",
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",
