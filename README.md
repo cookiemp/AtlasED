@@ -149,31 +149,31 @@ AtlasED is a **local-first** desktop app using the **BYOK (Bring Your Own Key)**
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                     Electron Shell (Main Process)                │
-│  ┌────────────────────┐  ┌──────────────────┐  ┌─────────────┐ │
-│  │   IPC Handlers     │  │  SQLite (better-  │  │  Electron   │ │
-│  │   (CRUD Ops)       │  │  sqlite3)         │  │  Store      │ │
-│  └────────┬───────────┘  └────────┬─────────┘  │  (Encrypted) │ │
+│                     Electron Shell (Main Process)               │
+│  ┌────────────────────┐  ┌──────────────────┐   ┌─────────────┐ │
+│  │   IPC Handlers     │  │  SQLite (better- │   │  Electron   │ │
+│  │   (CRUD Ops)       │  │  sqlite3)        │   │  Store      │ │
+│  └────────┬───────────┘  └────────┬─────────┘   │  (Encrypted)│ │
 │           │                       │             └──────┬──────┘ │
 │  ┌────────┴───────────────────────┴────────────────────┴──────┐ │
-│  │                      Preload Bridge (IPC)                   │ │
-│  └─────────────────────────┬───────────────────────────────────┘ │
+│  │                      Preload Bridge (IPC)                   ││
+│  └─────────────────────────┬───────────────────────────────────┘│
 ├─────────────────────────────┼───────────────────────────────────┤
 │                     Renderer Process                             │
 │  ┌──────────────────────────┴──────────────────────────────────┐ │
-│  │                   React + Vite (SWC)                         │ │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────────┐  │ │
-│  │  │Dashboard │  │Expedition│  │ Video    │  │ Knowledge  │  │ │
-│  │  │          │  │  View    │  │ Player   │  │  Graph     │  │ │
-│  │  └──────────┘  └──────────┘  └──────────┘  └────────────┘  │ │
+│  │                   React + Vite (SWC)                        │ │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────────┐   │ │
+│  │  │Dashboard │  │Expedition│  │ Video    │  │ Knowledge  │   │ │ 
+│  │  │          │  │  View    │  │ Player   │  │  Graph     │   │ │
+│  │  └──────────┘  └──────────┘  └──────────┘  └────────────┘   │ │
 │  └─────────────────────────────────────────────────────────────┘ │
 │                                                                   │
 │  ┌───────────────────────────────────────────────────────────────┐│
 │  │                     External Services                         ││
-│  │  ┌──────────────┐  ┌───────────────┐  ┌────────────────────┐ ││
-│  │  │YouTube IFrame│  │Gemini API     │  │youtube-transcript  │ ││
-│  │  │Player API    │  │(User's Key)   │  │(Python)            │ ││
-│  │  └──────────────┘  └───────────────┘  └────────────────────┘ ││
+│  │  ┌──────────────┐  ┌───────────────┐  ┌────────────────────┐  ││
+│  │  │YouTube IFrame│  │Gemini API     │  │youtube-transcript  │  ││
+│  │  │Player API    │  │(User's Key)   │  │(Python)            │  ││
+│  │  └──────────────┘  └───────────────┘  └────────────────────┘  ││
 │  └───────────────────────────────────────────────────────────────┘│
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -296,7 +296,7 @@ AtlasED uses the **BYOK (Bring Your Own Key)** model. You'll need:
 
 1. **Gemini API Key** (required) — [Get a free key](https://aistudio.google.com/apikey)
    - Free tier: 15 requests/minute, 1M tokens/minute
-   - Supports `gemini-1.5-flash` for speed
+   - Supports `gemini-3-flash` and `gemini-2.5-flash` as a fallback
    - 1M token context window for analyzing full playlists
 
 2. **YouTube Data API Key** (optional) — For enhanced playlist metadata
